@@ -1,0 +1,7 @@
+gpu_ids: [0]
+results_dir: '/output'
+checkpoint: '/model/vit-mae-base-16epoch=10.ckpt'
+inference:
+  ann_path: '/input/coco.json'
+  img_dir: '/input/images'
+  label_dump_path: '/output/coco_mal.json'
