@@ -3,11 +3,10 @@
 set -eo pipefail
 cd "$( dirname "${BASH_SOURCE[0]}" )"
 
-REGISTRY="nvcr.io"
-REPOSITORY="nvidia/tao/tao-toolkit"
-
-TAG="5.0.0-data-services-base"
-LOCAL_TAG="$USER"
+# Read parameters from manifest.json
+REGISTRY=`jq -r '.registry' $NV_TAO_DS_TOP/docker/manifest.json`
+REPOSITORY=`jq -r '.repository' $NV_TAO_DS_TOP/docker/manifest.json`
+TAG=`jq -r '.tag' $NV_TAO_DS_TOP/docker/manifest.json`
 
 BUILD_DOCKER="0"
 PUSH_DOCKER="0"
@@ -53,12 +52,11 @@ if [ $BUILD_DOCKER = "1" ]; then
     else
         NO_CACHE=""
     fi
-    DOCKER_BUILDKIT=1 docker build --pull -f $NV_TAO_DS_TOP/docker/Dockerfile -t $REGISTRY/$REPOSITORY:$LOCAL_TAG $NO_CACHE \
+    DOCKER_BUILDKIT=1 docker build --pull -f $NV_TAO_DS_TOP/docker/Dockerfile -t $REGISTRY/$REPOSITORY:$TAG $NO_CACHE \
         --network=host $NV_TAO_DS_TOP/.
 
     if [ $PUSH_DOCKER = "1" ]; then
         echo "Pusing docker ..."
-        docker tag $REGISTRY/$REPOSITORY:$LOCAL_TAG $REGISTRY/$REPOSITORY:$TAG
         docker push $REGISTRY/$REPOSITORY:$TAG
         digest=$(docker inspect --format='{{index .RepoDigests 0}}' $REGISTRY/$REPOSITORY:$TAG)
         echo -e "\033[1;33mUpdate the digest in the manifest.json file to:\033[0m"

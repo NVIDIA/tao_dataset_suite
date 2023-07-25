@@ -24,7 +24,7 @@ RUN source "$NVM_DIR/nvm.sh" \
     && nvm install 20.2.0 --reinstall-packages-from=16.15.1 node \
     && nvm uninstall 16.15.1
 
-ENV NVIDIA_PRODUCT_NAME "TAO Toolkit - Data Services"
+ENV NVIDIA_PRODUCT_NAME "TAO Toolkit"
 ENV TAO_TOOLKIT_VERSION="5.0.0"
 
 CMD [ "/bin/bash" ]
