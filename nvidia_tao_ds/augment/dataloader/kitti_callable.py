@@ -56,8 +56,11 @@ class KittiInputCallable:
         label_path = self.label_paths[sample_idx]
         label = self.labels[sample_idx]
         boxes = []
-        for annotation in label:
-            boxes.append(annotation.box)
+        if len(label) == 0:  # fake box for an empty annotation file
+            boxes = [0, 0, 0, 0]
+        else:
+            for annotation in label:
+                boxes.append(annotation.box)
         boxes = np.float32(boxes)
         encoded_img = load_file(image_path)
 

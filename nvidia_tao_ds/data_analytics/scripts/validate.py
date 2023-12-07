@@ -111,7 +111,9 @@ def validate_dataset_kitti(config):
         config (Hydra config): Config element of the analyze config.
     """
     start_time = time.perf_counter()
-    kitti_obj = data_format.KittiData(config.data.image_dir, config.data.ann_path)
+    kitti_obj = data_format.create_data_object("KITTI",
+                                               ann_path=config.data.ann_path,
+                                               image_dir=config.data.image_dir)
     if not os.path.isdir(config.data.ann_path):
         logger.info("Please provide path of kitti label directory in config data.ann_path.")
         sys.exit(1)
@@ -158,7 +160,9 @@ def validate_dataset_coco(config):
     if not os.path.isfile(config.data.ann_path):
         logger.info("Please provide path of coco annotation file in config data.ann_path.")
         sys.exit(1)
-    coco_obj = data_format.CocoData(config.data.ann_path, config.data.image_dir)
+    coco_obj = data_format.create_data_object("COCO",
+                                              ann_path=config.data.ann_path,
+                                              image_dir=config.data.image_dir)
     # Dataframe creation for valid and invalid kitti data
     valid_df, invalid_df = coco.create_dataframe(coco_obj)
     validate_summary(valid_df, invalid_df, config.data.input_format)

@@ -38,7 +38,7 @@ def correct_data(coco_obj, output_dir):
     Return:
         No explicit returns.
     """
-    coco = COCO(coco_obj.ann_file)
+    coco = COCO(coco_obj.ann_path)
     for annots in coco.anns.values():
         bbox = annots['bbox']
         bbox = [bbox[0], bbox[1], bbox[2] + bbox[0], bbox[3] + bbox[1]]
@@ -63,7 +63,7 @@ def correct_data(coco_obj, output_dir):
                   "images": list(coco.imgs.values()),
                   "categories": list(coco.cats.values())}
     # save the corrected coco annotation file.
-    basename = os.path.basename(coco_obj.ann_file)
+    basename = os.path.basename(coco_obj.ann_path)
     save_path = os.path.join(output_dir, f"{basename}")
 
     with open(save_path, "w", encoding='utf-8') as f:
@@ -81,7 +81,7 @@ def get_image_data(coco_obj):
         image_data(dict): Dictionary of image name.
             mapped to image width and height.
     """
-    coco = COCO(coco_obj.ann_file)
+    coco = COCO(coco_obj.ann_path)
     image_dir = coco_obj.image_dir
     image_data = {}
     for img in coco.imgs.values():
@@ -144,7 +144,7 @@ def create_dataframe(coco_obj):
         invalid_df (Pandas DataFrame): output invalid dataframe of kitti data.
 
     """
-    coco = COCO(coco_obj.ann_file)
+    coco = COCO(coco_obj.ann_path)
     valid_data_list = []
     invalid_data_list = []
     category_ids = coco.getCatIds()

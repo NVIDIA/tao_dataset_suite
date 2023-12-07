@@ -21,20 +21,19 @@ import pandas as pd
 import numpy as np
 import ujson
 import yaml
-from tqdm.auto import tqdm
+from tqdm.contrib.concurrent import process_map
 import csv
-import cv2
+import imagesize
 
 
 def read_kitti_labels(label_file):
-    """
-    Utility function to read a KITTI label file
+    """Utility function to read a KITTI label file.
 
     Args:
-    label_file (string): Label file path
+        label_file (string): Label file path.
 
     Returns:
-    label_list (list): List of labels
+        label_list (list): List of labels.
     """
     label_list = []
     if not os.path.exists(label_file):
@@ -47,19 +46,17 @@ def read_kitti_labels(label_file):
 
 
 def check_bbox_coordinates(coord, img_h, img_w):
-    """
-    Utility function to validate the bounding box coordinates
+    """Utility function to validate the bounding box coordinates.
 
     Args:
-    coord (tuple): Bounding box coordinates in KITTI format
-    img_h (int): Image height
-    img_w (int): Image widith
-    label_file (string): Label file path
+        coord (tuple): Bounding box coordinates in KITTI format.
+        img_h (int): Image height.
+        img_w (int): Image widith.
+        label_file (string): Label file path.
 
     Returns:
-    Bounding box coordinates
+        Bounding box coordinates
     """
-    "Checks coordinates."
     x1, y1, x2, y2 = coord
     x1 = min(max(x1, 0), img_w)
     x2 = min(max(x2, 0), img_w)
@@ -71,33 +68,30 @@ def check_bbox_coordinates(coord, img_h, img_w):
 
 
 def convert_xyxy_to_xywh(coord):
-    """
-    Utility function to convert bounding box coordinates from KITTI format to COCO
+    """Utility function to convert bounding box coordinates from KITTI format to COCO.
 
     Args:
-    coord (tuple): Bounding box coordinates in KITTI format
-    img_h (int): Image height
-    img_w (int): Image widith
-    label_file (string): Label file path
+        coord (tuple): Bounding box coordinates in KITTI format.
+        img_h (int): Image height.
+        img_w (int): Image widith.
+        label_file (string): Label file path.
 
     Returns:
-    Bounding box coordinates in COCO format
+        Bounding box coordinates in COCO format
     """
-    "Checks coordinates."
     x1, y1, x2, y2 = coord
     w, h = x2 - x1, y2 - y1
     return [x1, y1, w, h]
 
 
 def get_categories(cat_map):
-    """
-    Function to convert the category map to COCO annotation format
+    """Function to convert the category map to COCO annotation format.
 
     Args:
-    cat_map (dictionary): Category map
+        cat_map (dictionary): Category map.
 
     Returns:
-    categories_list (list): COCO annotation format of the category map
+        categories_list (list): COCO annotation format of the category map.
     """
     categories_list = []
     for i, class_name in enumerate(cat_map):
@@ -110,15 +104,14 @@ def get_categories(cat_map):
 
 
 def construct_category_map(label_dir, mapping=None):
-    """
-    Function to create a category map for the given dataset
+    """Function to create a category map for the given dataset.
 
     Args:
-    label_dir (str): Label directory
-    mapping (str): Mapping file
+        label_dir (str): Label directory.
+        mapping (str): Mapping file.
 
     Returns:
-    cat_map (dictionary): Category mapping
+        cat_map (dictionary): Category mapping
     """
     cat_map = OrderedDict()
     if mapping is not None:
@@ -137,16 +130,96 @@ def construct_category_map(label_dir, mapping=None):
             for _, row_p in df.iterrows():
                 if row_p[0] not in cat_map:
                     cat_map[row_p[0]] = [row_p[0]]
+
     return cat_map
 
 
-def convert_kitti_to_coco(img_dir, label_dir, output_dir, mapping=None, name=None):
+def _convert(args):
+    """Function to process single image and label for multiprocessing.
+
+    Args:
+        args (tuple): Contains image directory, image file name, label directory,
+            category mapping, and category to id mapping.
+
+    Returns:
+        img_dict (dict): image dictionary.
+        annot_list (list): list of annotation dictionary.
+        include_image (bool): whether to include this image or not.
+    """
+    img_dir, img, label_dir, labels2cat, cat2index, preserve_hierarchy = args
+    if preserve_hierarchy:
+        # Last two dirs + img name.
+        # In KITTI: training/image_2/0.jpg
+        # In Astro: 20ft_45_degrees_4.mp4/images_final_hres/0.jpg
+        filename = os.path.join(*Path(img_dir).parts[-2:], img)
+    else:
+        filename = img
+    include_image = False
+
+    if str(Path(img).suffix).lower() not in [".jpg", ".png", ".jpeg"]:
+        return {"file_name": filename}, [], include_image
+
+    labels = os.path.join(label_dir, f"{img[:-4]}.txt")
+    # skip images w/o annotations
+    if os.path.getsize(labels) <= 0:
+        return {"file_name": filename}, [], include_image
+    width, height = imagesize.get(os.path.join(img_dir, img))
+
+    # update image list
+    img_dict = {
+        "file_name": filename,
+        "height": height,
+        "width": width,
+    }
+
+    # process labels
+    bboxes = read_kitti_labels(labels)
+    df = pd.DataFrame(bboxes)
+    df = df.drop_duplicates()
+
+    annot_list = []
+    # update annotation list
+    for _, row_p in df.iterrows():
+        mapped = labels2cat.get(row_p[0], None)
+
+        if not mapped:
+            continue
+
+        bbox = np.array(row_p[4:8])
+        bbox = bbox.astype(float)
+
+        coord = check_bbox_coordinates(bbox.tolist(), height, width)
+        if not coord:
+            continue
+        include_image = True
+        coord = convert_xyxy_to_xywh(coord)
+        area = coord[2] * coord[3]
+        annot_dict = {
+            "bbox": coord,
+            "image_id": img,
+            "iscrowd": 0,
+            "area": area,
+            "category_id": cat2index[mapped],
+        }
+        annot_list.append(annot_dict)
+
+    return (img_dict, annot_list, include_image)
+
+
+def convert_kitti_to_coco(img_dir, label_dir, output_dir,
+                          mapping=None, name=None,
+                          no_skip=False,
+                          preserve_hierarchy=False):
     """Function to convert KITTI annotations to COCO format.
 
     Args:
         img_dir (string): Directory containing the images.
-        label_dir (string): Directory containing the KITTI labels
-        output_dir (string): Directory to output the COCO annotation file
+        label_dir (string): Directory containing the KITTI labels.
+        output_dir (string): Directory to output the COCO annotation file.
+        mapping (str): Mapping file.
+        name (str): Name of the output JSON file.
+        no_skip (bool): If True, do not skip images without any valid annotations
+        preserve_hierarchy (bool): If True, preserve the KITTI folder structure
     """
     annot_list, img_list, skipped_list = [], [], []
     img_id, obj_id = 0, 0
@@ -165,62 +238,37 @@ def convert_kitti_to_coco(img_dir, label_dir, output_dir, mapping=None, name=Non
     print(cat2index)
     print("*********************")
 
-    for img in tqdm(os.listdir(img_dir)):
-        if str(Path(img).suffix).lower() not in [".jpg", ".png", ".jpeg"]:
+    # Prepare arguments for multiprocessing
+    args = []
+    for img in os.listdir(img_dir):
+        args.append((img_dir, img, label_dir, labels2cat, cat2index, preserve_hierarchy))
+
+    # Run multiprocessing
+    results = process_map(_convert, args, chunksize=1)
+
+    # Iterate again to update the ids
+    for img_dict, anns, include_image in results:
+        fname = img_dict['file_name']
+
+        # Skip files that are not image
+        if str(Path(fname).suffix).lower() not in [".jpg", ".png", ".jpeg"]:
+            skipped_list.append(fname)
             continue
 
-        labels = os.path.join(label_dir, f"{img[:-4]}.txt")
-        img_shape = cv2.imread(os.path.join(img_dir, img)).shape
-        height, width = img_shape[0], img_shape[1]
+        # Skip files if invalid and no_skip=True
+        if not no_skip and not include_image:
+            skipped_list.append(fname)
+            continue
 
-        # update image list
         img_id += 1
-        img_dict = {
-            "file_name": img,
-            "scene_id": project,
-            "height": height,
-            "width": width,
-            "id": img_id
-        }
+        img_dict['id'] = img_id
         img_list.append(img_dict)
 
-        # process labels
-        bboxes = read_kitti_labels(labels)
-        df = pd.DataFrame(bboxes)
-        df = df.drop_duplicates()
-
-        # update annotation list
-        include_image = False
-        for _, row_p in df.iterrows():
-
-            mapped = labels2cat.get(row_p[0], None)
-            if not mapped:
-                continue
-
-            bbox = np.array(row_p[4:8])
-            bbox = bbox.astype(float)
-
-            coord = check_bbox_coordinates(bbox.tolist(), height, width)
-            if not coord:
-                continue
-            include_image = True
-            coord = convert_xyxy_to_xywh(coord)
-            area = coord[2] * coord[3]
+        for ann in anns:
             obj_id += 1
-            annot_dict = {
-                "bbox": coord,
-                "image_id": img_id,
-                "scene_id": project,
-                "iscrowd": 0,
-                "area": area,
-                "category_id": cat2index[mapped],
-                "id": obj_id
-            }
-            annot_list.append(annot_dict)
-
-        if not include_image:
-            img_skipped = img_list.pop()
-            skipped_list.append(img_skipped['file_name'])
+            ann['id'] = obj_id
+            ann['image_id'] = img_id
+            annot_list.append(ann)
 
     final_dict = {
         "annotations": annot_list,

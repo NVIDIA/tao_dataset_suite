@@ -16,42 +16,21 @@
 
 from dataclasses import dataclass
 from omegaconf import MISSING
-from typing import Optional
+from typing import Optional, List
 
 
 @dataclass
 class DataConfig:
     """Dataset configuration template."""
 
-    input_format: str = "KITTI"
-    output_format: str = "COCO"
-    output_dir: str = MISSING
+    format: str = "COCO"
+    annotations: List[str] = MISSING
+    same_categories: bool = True
 
 
 @dataclass
-class KITTIConfig:
-    """Dataset configuration template."""
-
-    image_dir: str = MISSING
-    label_dir: str = MISSING
-    project: Optional[str] = None
-    mapping: Optional[str] = None
-    no_skip: bool = False
-    preserve_hierarchy: bool = False
-
-
-@dataclass
-class COCOConfig:
-    """Dataset configuration template."""
-
-    ann_file: str = MISSING
-
-
-@dataclass
-class ExperimentConfig:
+class MergeConfig:
     """Experiment configuration template."""
 
     data: DataConfig = DataConfig()
-    kitti: KITTIConfig = KITTIConfig()
-    coco: COCOConfig = COCOConfig()
     results_dir: Optional[str] = None

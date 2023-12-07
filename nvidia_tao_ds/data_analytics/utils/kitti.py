@@ -39,7 +39,7 @@ def list_files(kitti_obj):
         No explicit returns.
     """
     image_dir = kitti_obj.image_dir
-    label_dir = kitti_obj.label_dir
+    label_dir = kitti_obj.ann_path
 
     images = []
     # List image files.

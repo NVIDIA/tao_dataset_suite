@@ -43,7 +43,9 @@ def run_conversion(cfg: ExperimentConfig):
                 cfg.kitti.label_dir,
                 cfg.data.output_dir,
                 cfg.kitti.mapping,
-                cfg.kitti.project)
+                cfg.kitti.project,
+                no_skip=cfg.kitti.no_skip,
+                preserve_hierarchy=cfg.kitti.preserve_hierarchy)
         elif cfg.data.input_format == "COCO" and cfg.data.output_format == "KITTI":
             convert_coco_to_kitti(
                 cfg.coco.ann_file,

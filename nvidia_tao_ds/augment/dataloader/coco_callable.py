@@ -62,6 +62,8 @@ class CocoInputCallable:
         return encoded_img, boxes, np.array([image_id], dtype=np.int32), np.uint8(masks)
 
     def _get_boxes(self, ann_ids, image_height, image_width):
+        if len(ann_ids) == 0:
+            return np.float32([[0, 0, 0, 0]]), np.uint8(np.zeros((1, 1, 1)))
         boxes = []
         masks = []
         for ann_id in ann_ids:

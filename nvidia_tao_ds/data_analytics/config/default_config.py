@@ -16,7 +16,7 @@
 
 from dataclasses import dataclass
 from omegaconf import MISSING
-from typing import Optional, List
+from typing import Optional, List, Dict
 import multiprocessing
 
 
@@ -26,8 +26,10 @@ class DataConfig:
 
     input_format: str = MISSING
     output_dir: str = MISSING
+    kpi_sources: Optional[List[Dict[str, str]]] = MISSING
     image_dir: str = MISSING
     ann_path: str = MISSING
+    mapping: str = MISSING
 
 
 @dataclass
@@ -54,6 +56,26 @@ class WandbConfig:
 
 
 @dataclass
+class VisualizeConfig:
+    """Visualize configuration template."""
+
+    platform: str = "local"
+    tag: Optional[str] = None
+
+
+@dataclass
+class KpiConfig:
+    """KPI configuration template."""
+
+    iou_threshold: float = 0.5
+    filter: bool = False
+    num_recall_points: int = 11
+    ignore_sqwidth: int = 0
+    conf_threshold: float = 0.5
+    is_internal: bool = False
+
+
+@dataclass
 class ImageConfig:
     """Image configuration template."""
 
@@ -71,4 +93,6 @@ class ExperimentConfig:
     apply_correction: bool = False
     graph: GraphConfig = GraphConfig()
     wandb: WandbConfig = WandbConfig()
+    visualize: VisualizeConfig = VisualizeConfig()
+    kpi: KpiConfig = KpiConfig()
     results_dir: Optional[str] = None

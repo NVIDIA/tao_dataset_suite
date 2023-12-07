@@ -1,8 +1,5 @@
 FROM nvcr.io/nvidia/tao/tao-toolkit:5.0.0-data-services-base
 
-# Cleaning up older OpenCV pakcages
-RUN rm -rvf /usr/local/lib/python3.8/dist-packages/cv2 /usr/local/lib/python3.8/dist-packages/opencv*
-
 WORKDIR /opt/nvidia
 COPY dist/*.whl /opt/nvidia/wheels/
 RUN ls /opt/nvidia/wheels/
@@ -10,21 +7,36 @@ RUN python -m pip install pip --upgrade \
     && cd wheels && ls ./*.whl|xargs -I'{}' python -m pip install '{}' \
     && rm *.whl
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg libsm6 libxext6 openssl libssl1.1
-    
-# Update pip package
-RUN python -m pip install --upgrade opencv-python scikit-learn pillow mpmath tornado werkzeug setuptools
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg libsm6 libxext6 openssl
+
+# NGC Security scan related fixes.
+# Low-level packages in apt are updated to resolve published security vulnerabilities ASAP
+# We retrieve these updates and upgrade the critical/high vulnerability ones
+RUN apt-get update && \
+    apt --only-upgrade install linux-libc-dev -y && \
+    apt --only-upgrade install curl -y && \
+    apt --only-upgrade install libc-bin -y && \
+    apt --only-upgrade install libc6-dev -y && \
+    apt --only-upgrade install libc6 -y && \
+    apt --only-upgrade install libc-dev-bin -y && \
+    apt --only-upgrade install libcurl3-gnutls -y && \
+    apt --only-upgrade install libcurl4 -y && \
+    apt --only-upgrade install libcurl4-openssl-dev -y
+
+RUN pip install --upgrade pip && \
+    python -m pip install --upgrade Werkzeug==3.0.1
 
 RUN rm -rf /opt/nvidia/entrypoint.d/*.txt
 COPY release/docker/entrypoint.d/* /opt/nvidia/entrypoint.d/
 
-# Updating Node
+# nvm version has to be >20.8.0 to avoid security vulnerabilities
 ENV NVM_DIR=/usr/local/nvm
 RUN source "$NVM_DIR/nvm.sh" \
-    && nvm install 20.2.0 --reinstall-packages-from=16.15.1 node \
-    && nvm uninstall 16.15.1
+    && nvm install 20.9.0 --reinstall-packages-from=16.20.2 node \
+    && nvm uninstall 16.20.2
 
 ENV NVIDIA_PRODUCT_NAME "TAO Toolkit"
-ENV TAO_TOOLKIT_VERSION="5.0.0"
+ENV TAO_TOOLKIT_VERSION="5.2.0"
+ENV TAO_TELEMETRY_SERVER="https://sqa-telemetry.metropolis.nvidia.com:443/api/v1/telemetry"
 
 CMD [ "/bin/bash" ]

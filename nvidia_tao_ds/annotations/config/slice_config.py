@@ -14,44 +14,37 @@
 
 """Default config file."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from omegaconf import MISSING
-from typing import Optional
+from typing import Optional, List, Any
 
 
 @dataclass
 class DataConfig:
     """Dataset configuration template."""
 
-    input_format: str = "KITTI"
-    output_format: str = "COCO"
-    output_dir: str = MISSING
+    format: str = 'COCO'
+    annotation_file: str = MISSING
 
 
 @dataclass
-class KITTIConfig:
+class FilterConfig:
     """Dataset configuration template."""
 
-    image_dir: str = MISSING
-    label_dir: str = MISSING
-    project: Optional[str] = None
-    mapping: Optional[str] = None
-    no_skip: bool = False
-    preserve_hierarchy: bool = False
+    mode: str = "random"  # category, number
+    reuse_categories: bool = True
+    dump_remainder: bool = False
+    split: Any = 0.25
+    num_samples: int = 100
+    included_categories: List[str] = field(default_factory=lambda: [])
+    excluded_categories: List[str] = field(default_factory=lambda: [])
+    re_patterns: List[str] = field(default_factory=lambda: [])
 
 
 @dataclass
-class COCOConfig:
-    """Dataset configuration template."""
-
-    ann_file: str = MISSING
-
-
-@dataclass
-class ExperimentConfig:
+class SliceConfig:
     """Experiment configuration template."""
 
     data: DataConfig = DataConfig()
-    kitti: KITTIConfig = KITTIConfig()
-    coco: COCOConfig = COCOConfig()
+    filter: FilterConfig = FilterConfig()
     results_dir: Optional[str] = None

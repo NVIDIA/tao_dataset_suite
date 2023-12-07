@@ -54,7 +54,8 @@ def convert_coco_to_kitti(annotations_file, output_dir, refine_box=False):
         annotation_ids = coco.getAnnIds(imgIds=[img], catIds=category_ids)
         if len(annotation_ids) > 0:
             img_fname = ann['file_name']
-            label_fname = img_fname.split('.')[0]
+            label_fname = os.path.basename(img_fname).split('.')[0]
+
             with open(os.path.join(output_dir, f'{label_fname}.txt'), 'w', encoding='utf-8') as label_file:
                 annotations = coco.loadAnns(annotation_ids)
                 for annotation in annotations:

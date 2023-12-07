@@ -93,6 +93,9 @@ def parse_label_file(label_file):
     for line in lines:
         if line[-1] == '\n':
             line = line[:-1]
+            # skip empty line
+            if not line:
+                continue
         tokens = line.split(" ")
         annotations.append(Annotation(*tokens))
     return annotations

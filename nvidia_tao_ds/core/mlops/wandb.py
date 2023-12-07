@@ -98,8 +98,9 @@ def initialize_wandb(output_dir,
         start_time = datetime.now()
         time_string = start_time.strftime("%d/%y/%m_%H:%M:%S")
         if name is None:
-            name = "run"
-        wandb_name = f"{name}_{time_string}"
+            wandb_name = f"run_{time_string}"
+        else:            
+            wandb_name = name
         wandb.init(
             project=project,
             entity=entity,

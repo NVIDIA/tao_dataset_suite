@@ -15,7 +15,6 @@
 """DALI pipeline runner."""
 import os
 import numpy as np
-from multiprocessing import Pool
 import pycocotools.mask as maskUtils
 from PIL import Image
 from tqdm import tqdm
@@ -67,11 +66,14 @@ def process_augmented_kitti(image, boxes_per_image,
     # dump kitti file with augmented labels
     with open(os.path.join(output_label_dir, label_name), "w", encoding='utf-8') as f:
         annotations = kitti.parse_label_file(label_path)
-        for j in range(boxes_per_image.shape[0]):
-            annotation = annotations[j]
-            annotation.box = boxes_per_image[j]
-            f.write(str(annotation))
-            f.write('\n')
+        if annotations:
+            for j in range(boxes_per_image.shape[0]):
+                annotation = annotations[j]
+                annotation.box = boxes_per_image[j]
+                f.write(str(annotation))
+                f.write('\n')
+        else:
+            f.write('')
 
 
 class DALIPipeIter():
@@ -101,56 +103,43 @@ class DALIPipeIter():
         return self.pipe.run()
 
 
-def run(pipe, batch_size, data_callable, config):
+def run(pipe, data_callable, config):
     """Run pipeline."""
     if config.data.dataset_type.lower() == 'coco':
-        results = []
         ann_dump = []
         img_id_set = set()
-        with Pool(batch_size) as pool:
-            with tqdm(total=data_callable.size) as pbar:
-                for images, boxes, img_ids, masks in DALIPipeIter(pipe):
+        with tqdm(total=data_callable.size) as pbar:
+            for images, boxes, img_ids, masks in DALIPipeIter(pipe):
 
-                    images = images.as_cpu()
-                    img_ids = img_ids.as_array().flatten()
-                    for i, img_id in enumerate(img_ids):
-                        img_id = int(img_id)
-                        if img_id not in img_id_set:
-                            img_id_set.add(img_id)
-                            results.append(pool.apply_async(
-                                process_augmented_coco,
-                                (img_id,
-                                 images.at(i),
-                                 boxes.at(i),
-                                 masks.at(i),
-                                 data_callable.coco,
-                                 config)))
-                    pbar.update(data_callable.samples_per_iter)
-                for r in results:
-                    r.wait()
-                    ann_batch = r.get()
-                    for b in ann_batch:
-                        ann_dump.append(b)
+                images = images.as_cpu()
+                img_ids = img_ids.as_array().flatten()
+                for i, img_id in enumerate(img_ids):
+                    img_id = int(img_id)
+                    if img_id not in img_id_set:
+                        img_id_set.add(img_id)
+                        ann_dump.extend(
+                            process_augmented_coco(
+                                img_id,
+                                images.at(i),
+                                boxes.at(i),
+                                masks.at(i),
+                                data_callable.coco,
+                                config))
+                pbar.update(data_callable.samples_per_iter)
         return ann_dump
 
     if config.data.dataset_type.lower() == 'kitti':
-        with Pool(batch_size) as pool:
-            with tqdm(total=data_callable.size) as pbar:
-                for images, boxes, img_paths, lbl_paths in DALIPipeIter(pipe):
-                    images = images.as_cpu()
+        with tqdm(total=data_callable.size) as pbar:
+            for images, boxes, img_paths, lbl_paths in DALIPipeIter(pipe):
+                images = images.as_cpu()
 
-                    results = []
-                    for i in range(len(images)):
-                        results.append(pool.apply_async(
-                            process_augmented_kitti,
-                            (images.at(i),
-                             boxes.at(i),
-                             img_paths.at(i),
-                             lbl_paths.at(i),
-                             config)))
-
-                    for r in results:
-                        r.wait()
-                    pbar.update(data_callable.samples_per_iter)
+                for i in range(len(images)):
+                    process_augmented_kitti(
+                        images.at(i),
+                        boxes.at(i),
+                        img_paths.at(i),
+                        lbl_paths.at(i),
+                        config)
+                pbar.update(data_callable.samples_per_iter)
         return 0
     raise ValueError("Only `kitti` and `coco` are supported in dataset_type.")

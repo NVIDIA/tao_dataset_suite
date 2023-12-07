@@ -15,6 +15,7 @@
 """Entrypoint script to run TAO augmentation."""
 
 from copy import deepcopy
+import gc
 import glob
 import logging
 import json
@@ -78,9 +79,12 @@ def run_augment(config):
         device_id=MPI_local_rank()
     )
 
-    ann_dump = runner.run(pipe, batch_size, data_callable, config)
+    ann_dump = runner.run(pipe, data_callable, config)
+    time_elapsed = time.time() - start_time
+    logger.info(f"Data augmentation (rank #{MPI_local_rank()}) finished in {time_elapsed:.2f}s.")
     # extra process for COCO dump
     if config.data.dataset_type.lower() == 'coco' and ann_dump:
+        logger.info("Saving output annotation JSON...")
         out_label_path = os.path.join(output_label_dir, "output.json")
         tmp_label_path = out_label_path + f'.part{MPI_local_rank()}'
         with open(tmp_label_path, "w", encoding='utf-8') as f:
@@ -110,9 +114,7 @@ def run_augment(config):
             for tmp_i in tmp_files:
                 if os.path.exists(tmp_i):
                     os.remove(tmp_i)
-    if MPI_local_rank() == 0:
-        time_elapsed = time.time() - start_time
-        logger.info(f"Data augmentation finished in {time_elapsed:.2f}s.")
+            logger.info(f"The annotation JSON is saved at {out_label_path}.")
 
 
 def check_gt_cache(cfg, is_kitti=False, gt_cache=None):
@@ -173,6 +175,7 @@ def main(cfg: AugmentConfig):
                 refine_box=refine_box_enabled
             )
             logger.info("KITTI conversion is complete.")
+        gc.collect()
     except KeyboardInterrupt:
         logger.info("Interrupting augmentation.")
         sys.exit()

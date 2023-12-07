@@ -18,6 +18,7 @@ import logging
 import os
 import random
 import wandb
+import pandas as pd
 
 from nvidia_tao_ds.core.mlops.wandb import (
     check_wandb_logged_in,
@@ -60,6 +61,20 @@ def create_barplot(data, title, name):
     wandb.log({name: barplot})
 
 
+def create_lineplot(data, title, name):
+    """ Create lineplot in wandb.
+    Args:
+        data (Pandas dataframe): data to create barplot.
+        title (str): lineplot title.
+        name (str): wandb plot log name.
+    Return:
+        No explicit return
+    """
+    table = wandb.Table(data=data)
+    lineplot = wandb.plot.line(table, data.columns[0], data.columns[1], title=title)
+    wandb.log({name: lineplot})
+
+
 def create_table(data, name):
     """ Create table in wandb.
     Args:
@@ -70,6 +85,29 @@ def create_table(data, name):
     """
     table = wandb.Table(data=data)
     wandb.log({name: table})
+
+
+def plot_PR_curve(result):
+    """
+    Generate PR curve.
+    Args:
+        result (Pandas dataframe): Pandas dataframe with KPI values.
+        output_dir (str): Output directory.
+    Return:
+        No explicit return
+    """
+    for _, metric in result.iterrows():
+        seqname = metric['Sequence Name']
+        classname = metric['class_name']
+        prec = metric['precision']
+        recall = metric['recall']
+
+        # Skip summary row
+        if seqname == "Summary" and prec is None and recall is None:
+            continue
+
+        df = pd.DataFrame({'recall': recall, 'precision': prec})
+        create_lineplot(df, f"{seqname} {classname} PR curve ", f"{seqname} {classname}_PR")
 
 
 def generate_images_with_bounding_boxes(df, wandb_config, output_dir, image_sample_size):
