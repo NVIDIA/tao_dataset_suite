@@ -1,13 +1,13 @@
-FROM nvcr.io/nvidia/pytorch:23.09-py3
+FROM nvcr.io/nvidia/pytorch:23.12-py3
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg libsm6 libxext6
+
 # upgrade pip
 RUN pip install --upgrade pip
 
-# Installing reruirements
+# Installing requirements
 COPY docker/requirements-pip.txt requirements-pip.txt
-RUN pip install Cython==0.29.36 && \
-    pip install -r requirements-pip.txt && \
+RUN pip install -r requirements-pip.txt && \
     rm -rf requirements-pip.txt
 
 # Install mmcv from source for our cuda versions.

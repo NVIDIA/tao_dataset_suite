@@ -133,12 +133,12 @@ class RandomCropV2:
             gates = np.array([gates[0], gates[1], 1 - gates[0], 1 - gates[1]])
             margins = margins * gates
             extbox = self._expand_box(box, margins)
-            extbox = np.array([np.floor(extbox[0]), np.floor(extbox[1]), np.ceil(extbox[2]), np.ceil(extbox[3])]).astype(np.int)
+            extbox = np.array([np.floor(extbox[0]), np.floor(extbox[1]), np.ceil(extbox[2]), np.ceil(extbox[3])]).astype(int)
             ext_h, ext_w = extbox[3] - extbox[1], extbox[2] - extbox[0]
         else:
             margins = np.ones(4) * self._margin_rate[0] * 0.5
             extbox = self._expand_box(box, margins)
-            extbox = np.array([np.floor(extbox[0]), np.floor(extbox[1]), np.ceil(extbox[2]), np.ceil(extbox[3])]).astype(np.int)
+            extbox = np.array([np.floor(extbox[0]), np.floor(extbox[1]), np.ceil(extbox[2]), np.ceil(extbox[3])]).astype(int)
             ext_h, ext_w = extbox[3] - extbox[1], extbox[2] - extbox[0]
 
         # extended box size
@@ -189,12 +189,12 @@ class RandomCropV3(RandomCropV2):
             gates = np.array([gates[0], gates[1], 1 - gates[0], 1 - gates[1]])
             margins = margins * gates
             extbox = self._expand_box(box, margins)
-            extbox = np.array([np.floor(extbox[0]), np.floor(extbox[1]), np.ceil(extbox[2]), np.ceil(extbox[3])]).astype(np.int)
+            extbox = np.array([np.floor(extbox[0]), np.floor(extbox[1]), np.ceil(extbox[2]), np.ceil(extbox[3])]).astype(int)
             ext_h, ext_w = extbox[3] - extbox[1], extbox[2] - extbox[0]
         else:
             margins = np.ones(4) * self._margin_rate[0] * 0.5
             extbox = self._expand_box(box, margins)
-            extbox = np.array([np.floor(extbox[0]), np.floor(extbox[1]), np.ceil(extbox[2]), np.ceil(extbox[3])]).astype(np.int)
+            extbox = np.array([np.floor(extbox[0]), np.floor(extbox[1]), np.ceil(extbox[2]), np.ceil(extbox[3])]).astype(int)
             ext_h, ext_w = extbox[3] - extbox[1], extbox[2] - extbox[0]
 
         # extended box size

@@ -330,8 +330,8 @@ def evaluate(gt_data_obj, pred_data_obj, cat_map, matching_iou_threshold=0.5, co
         for img_id in gt_data_obj.ids:
             per_img_gt_df = cls_gt_df[cls_gt_df.img_name == img_id]
             per_img_pred_df = cls_pred_df[cls_pred_df.img_name == img_id]
-            per_img_gt_arr = per_img_gt_df[['type', 'bbox_xmin', 'bbox_ymin', 'bbox_xmax', 'bbox_ymax']].to_numpy().astype(np.float)
-            per_img_pred_arr = per_img_pred_df[['type', 'conf_score', 'bbox_xmin', 'bbox_ymin', 'bbox_xmax', 'bbox_ymax']].to_numpy().astype(np.float)
+            per_img_gt_arr = per_img_gt_df[['type', 'bbox_xmin', 'bbox_ymin', 'bbox_xmax', 'bbox_ymax']].to_numpy().astype(float)
+            per_img_pred_arr = per_img_pred_df[['type', 'conf_score', 'bbox_xmin', 'bbox_ymin', 'bbox_xmax', 'bbox_ymax']].to_numpy().astype(float)
 
             # Filter predictions based on minimum area
             mask = (per_img_pred_arr[:, 5] - per_img_pred_arr[:, 3]) * (per_img_pred_arr[:, 4] - per_img_pred_arr[:, 2]) >= min_area

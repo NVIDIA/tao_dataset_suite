@@ -548,14 +548,14 @@ class MAL(pl.LightningModule):
             h, w = int(img_h), int(img_w)
             img_pred_mask_shape = h, w
 
-            img_pred_mask = np.zeros(img_pred_mask_shape).astype(np.float)
+            img_pred_mask = np.zeros(img_pred_mask_shape).astype(float)
 
             img_pred_mask[max(ext_box[1], 0):min(ext_box[3], h), max(ext_box[0], 0):min(ext_box[2], w)] = \
                 roi_pred_mask[max(0 - ext_box[1], 0):ext_h + min(0, h - ext_box[3]), max(0 - ext_box[0], 0):ext_w + min(0, w - ext_box[2])].cpu().numpy()
 
             for idx, (lth, hth) in enumerate(zip(thres_list[:-1], thres_list[1:])):
                 if lth < area <= hth:
-                    img_pred_mask = (img_pred_mask > self.mask_thres[idx]).astype(np.float)
+                    img_pred_mask = (img_pred_mask > self.mask_thres[idx]).astype(float)
 
             img_pred_masks.append(img_pred_mask[None, ...])
             if self.cfg.dataset.load_mask:

@@ -28,6 +28,10 @@ setuptools_packages = []
 for package_name in PACKAGE_LIST:
     setuptools_packages.extend(utils.find_packages(package_name))
 
+if(os.path.exists("pytransform_vax_001219")):
+    pyarmor_packages = ["pytransform_vax_001219"]
+    setuptools_packages += pyarmor_packages
+
 setuptools.setup(
     name=version_locals['__package_name__'],
     version=version_locals['__version__'],
@@ -54,7 +58,8 @@ setuptools.setup(
             'augmentation=nvidia_tao_ds.augment.entrypoint.augment:main',
             'auto_label=nvidia_tao_ds.auto_label.entrypoint.auto_label:main',
             'annotations=nvidia_tao_ds.annotations.entrypoint.annotations:main',
-            'analytics=nvidia_tao_ds.data_analytics.entrypoint.analytics:main'
+            'analytics=nvidia_tao_ds.data_analytics.entrypoint.analytics:main',
+            'image=nvidia_tao_ds.image.entrypoint.image:main'
         ]
     }
 )
