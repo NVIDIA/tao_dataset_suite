@@ -1,0 +1,4 @@
+data:
+  image_dir: ???
+results_dir: "result"
+in_place: False
