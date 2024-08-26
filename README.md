@@ -78,7 +78,7 @@ We recommend adding this command to your local `~/.bashrc` file, so that every n
 In order to maintain a uniform development environment across all users, TAO Toolkit provides a base environment docker that has been built and uploaded to NGC for the developers. For instantiating the docker, simply run the `tao_ds` CLI. The usage for the command line launcher is mentioned below.
 
 ```sh
-usage: tao_ds [-h] [--gpus GPUS] [--volume VOLUME] [--env ENV] [--mounts_file MOUNTS_FILE] [--shm_size SHM_SIZE] [--run_as_user] [--tag TAG] [--ulimit ULIMIT]
+usage: tao_ds [-h] [--gpus GPUS] [--volume VOLUME] [--env ENV] [--mounts_file MOUNTS_FILE] [--shm_size SHM_SIZE] [--run_as_user] [--ulimit ULIMIT]
 
 Tool to run the TAO Toolkit Data-services container.
 
@@ -91,7 +91,6 @@ optional arguments:
                         Path to the mounts file.
   --shm_size SHM_SIZE   Shared memory size for docker
   --run_as_user         Flag to run as user
-  --tag TAG             The tag value for the local dev docker.
   --ulimit ULIMIT       Docker ulimits for the host machine.
 
 ```
@@ -111,18 +110,16 @@ There will be situations where developers would be required to update the third 
 The base dev docker is defined in `$NV_TAO_DS_TOP/docker/Dockerfile`. The python packages required for the TAO dev is defined in `$NV_TAO_DS_TOP/docker/requirements-pip.txt`. Once you have made the required change, please update the base docker using the build script in the same directory.
 
 ```sh
-git submodule update --init --recursive
-git submodule foreach git pull origin main
 cd $NV_TAO_DS_TOP/docker
 ./build.sh --build
 ```
 
 #### <a name='Testthenewlybuiltbasedocker'></a>Test the newly built base docker
 
-The build script tags the newly built base docker with the username of the account in the user's local machine. Therefore, the developers may tests their new docker by using the `tao_ds` command with the `--tag` option.
+Developers may tests their new docker by using the `tao_ds` command.
 
 ```sh
-tao_ds --tag $USER -- script args
+tao_ds -- script args
 ```
 
 #### <a name='Updatethenewdocker'></a>Update the new docker
