@@ -15,21 +15,32 @@
 """Default config file."""
 
 from dataclasses import dataclass
-from omegaconf import MISSING
 from typing import Optional
+from omegaconf import MISSING
+from nvidia_tao_ds.config_utils.default_config_utils import (
+    STR_FIELD,
+    BOOL_FIELD,
+    DATACLASS_FIELD,
+)
 
 
 @dataclass
 class DataConfig:
     """Dataset configuration template."""
 
-    image_dir: str = MISSING
+    image_dir: str = STR_FIELD(
+        value=MISSING, default_value="images", description="Output image path"
+    )
 
 
 @dataclass
 class ExperimentConfig:
     """Experiment configuration template."""
 
-    data: DataConfig = DataConfig()
-    in_place: Optional[bool] = True
-    results_dir: str = MISSING
+    data: DataConfig = DATACLASS_FIELD(
+        DataConfig(), description="Input data parameters"
+    )
+    in_place: Optional[bool] = BOOL_FIELD(
+        True, default_value=False, description="If correction needs to be done inplace"
+    )
+    results_dir: str = STR_FIELD(value="/results", default_value="/results")

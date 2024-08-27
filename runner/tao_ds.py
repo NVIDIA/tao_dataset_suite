@@ -28,7 +28,7 @@ with open(os.path.join(ROOT_DIR, "docker/manifest.json"), "r") as m_file:
 
 DOCKER_REGISTRY = docker_config["registry"]
 DOCKER_REPOSITORY = docker_config["repository"]
-DOCKER_TAG = docker_config["tag"]
+DOCKER_DIGEST = docker_config["digest"]
 DOCKER_COMMAND = "docker"
 HOME_PATH = os.path.expanduser("~")
 MOUNTS_PATH = os.path.join(HOME_PATH, ".tao_mounts.json")
@@ -57,14 +57,14 @@ def format_mounts(mount_points):
 
 def check_image_exists(docker_image):
     """Check if the image exists locally."""
-    check_command = '{} images | grep "\\<{}\\>" | grep "{}" >/dev/null 2>&1'.format(DOCKER_COMMAND, docker_image, DOCKER_TAG)
+    check_command = '{} inspect --type=image {} >/dev/null 2>&1'.format(DOCKER_COMMAND, docker_image)
     rc = subprocess.call(check_command, stdout=sys.stderr, shell=True)
     return rc == 0
 
 
 def pull_base_container(docker_image):
     """Pull the default base container."""
-    pull_command = "{} pull {}:{}".format(DOCKER_COMMAND, docker_image, DOCKER_TAG)
+    pull_command = "{} pull {}@{}".format(DOCKER_COMMAND, docker_image, DOCKER_DIGEST)
     rc = subprocess.call(pull_command, stdout=sys.stderr, shell=True)
     return rc == 0
 
@@ -110,28 +110,25 @@ def get_docker_gpus_prefix(gpus):
     return gpu_string
 
 
-def create_base_docker():
-    """Function to create the base docker."""
-    create_command = "bash {}/docker/build.sh --build".format(ROOT_DIR)
-    try:
-        subprocess.run(create_command, stdout=sys.stderr, shell=True, check=True)
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Container build failed with error {e}")
-
-
 def instantiate_dev_docker(gpus, mount_file,
                            mount_cli_list,
                            env_var_list,
-                           command, ulimit=None,
-                           shm_size="16G", run_as_user=False):
+                           tag, command, ulimit=None,
+                           shm_size="16G", run_as_user=False,
+                           port_mapping=None, port=None,
+                           tty=True):
     """Instiate the docker container."""
-    docker_image = "{}/{}:{}".format(DOCKER_REGISTRY, DOCKER_REPOSITORY, DOCKER_TAG)
-
+    docker_image = "{}/{}@{}".format(DOCKER_REGISTRY, DOCKER_REPOSITORY, DOCKER_DIGEST)
+    if tag is not None:
+        docker_image = "{}/{}:{}".format(DOCKER_REGISTRY, DOCKER_REPOSITORY, tag)
     # Invoking the nvidia docker.
     gpu_string = get_docker_gpus_prefix(gpus)
 
     # Prefix for the run command.
-    run_command = "{} run -it --rm".format(DOCKER_COMMAND)
+    if tty:
+        run_command = "{} run -it --rm".format(DOCKER_COMMAND)
+    else:
+        run_command = "{} run --rm".format(DOCKER_COMMAND)
 
     # get default mount points.
     formatted_mounts = get_formatted_mounts(MOUNTS_PATH)
@@ -173,12 +170,18 @@ def instantiate_dev_docker(gpus, mount_file,
     working_directory = "/workspace"
     working_dir_option = f"-w {working_directory}"
 
-    final_command = "{} {} {} {} {} {} {} {} {} {}".format(
+    port_option = "--net=host"
+    if port_mapping:
+        port_option += f" -p {port_mapping}:{port}"
+
+    command = '/bin/bash -c "' + " ".join(command) + '"' if command else ""
+
+    final_command = "{} {} {} {} {} {} {} {} {} {} {}".format(
         run_command, gpu_string,
         mount_string, env_variables,
-        shm_option, ulimit_options, user_option,
-        working_dir_option,
-        docker_image, " ".join(command)
+        shm_option, ulimit_options, user_option, working_dir_option,
+        port_option,
+        docker_image, command
     )
     print(final_command)
     return subprocess.check_call(final_command, stdout=sys.stderr, shell=True)
@@ -234,12 +237,56 @@ def parse_cli_args(args=None):
         action="store_true",
         default=False
     )
-    
+
+    parser.add_argument(
+        "--tag",
+        help="The tag value for the local dev docker.",
+        default=None,
+        type=str
+    )
+   
     parser.add_argument(
         "--ulimit",
         action='append',
         help="Docker ulimits for the host machine."
     )
+    
+    parser.add_argument(
+        "--run_as_service",
+        help="Flag to run as a microservice",
+        action="store_true",
+        default=False
+    )
+
+    parser.add_argument(
+        "--ip",
+        type=str,
+        default="0.0.0.0",
+        help="Microservice ip address (e.g. 0.0.0.0)."
+    )
+    
+    parser.add_argument(
+        "--port",
+        type=str,
+        default=8000,
+        help="Microservice port (e.g. 8000)."
+    )
+
+    parser.add_argument(
+        "--port_mapping",
+        type=str, 
+        default="8000", 
+        help="Port mapping for the micorservices port (e.g. 8000).")
+
+    parser.add_argument(
+        "--no-tty",
+        dest="tty",
+        action="store_false",
+        help="Set TTY"
+    )
+    
+    parser.set_defaults(tty=True)
+    
     args = vars(parser.parse_args(args))
     return args
 
@@ -253,21 +300,32 @@ def main(cl_args=None):
         command_args = cl_args[index + 1:]
     else:
         ds_args = cl_args
-        command_args = ["/bin/bash"]
+        command_args = None
+        
     args = parse_cli_args(ds_args)
     
-    docker_image = "{}/{}".format(DOCKER_REGISTRY, DOCKER_REPOSITORY)
+    # Over writing command_args in case the container is being launched as a microservice
+    if args["run_as_service"]:
+        command_args = list(f'pip install ./nvidia_tao_pytorch-5.2.0.1-cp310-cp310-linux_x86_64.whl && \
+                            python setup.py bdist_wheel && \
+                            export PYTHONPATH=$PYTHONPATH:/workspace/nvidia_tao_ds/api && \
+                            export FLASK_APP=/workspace/nvidia_tao_ds/api/app.py && \
+                            flask run --host {args["ip"]} --port {args["port"]}'.split(" "))
 
+    docker_image = "{}/{}".format(DOCKER_REGISTRY, DOCKER_REPOSITORY)
+    if args["tag"] is not None:
+        docker_image = "{}:{}".format(docker_image, args["tag"])
     if not check_image_exists(docker_image):
-        if not pull_base_container(docker_image):
-            print("The base container doesn't exist locally and the pull failed. Hence creating the base container")
-            create_base_docker()
+        assert pull_base_container(docker_image), "The base container doesn't exist locally and the pull failed."
     try:
         instantiate_dev_docker(
             args["gpus"], args["mounts_file"],
             args["volume"], args["env"],
-            command_args, args["ulimit"],
-            args["shm_size"], args["run_as_user"]
+            args["tag"], command_args,
+            args["ulimit"], args["shm_size"],
+            args["run_as_user"],
+            args["port_mapping"], args["port"],
+            args["tty"]
         )
     except subprocess.CalledProcessError:
         # Do nothing - the errors are printed in entrypoint launch.

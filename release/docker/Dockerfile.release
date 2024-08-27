@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tao/tao-toolkit:5.0.0-data-services-base
+FROM nvcr.io/nvstaging/tao/data_services_base_image@sha256:407fea11455b47da32fb1d816cdc8166a5da755144cf23feb26a0c2c9e162cfe
 
 WORKDIR /opt/nvidia
 COPY dist/*.whl /opt/nvidia/wheels/
@@ -35,8 +35,14 @@ RUN source "$NVM_DIR/nvm.sh" \
     && nvm install 20.9.0 --reinstall-packages-from=16.20.2 node \
     && nvm uninstall 16.20.2
 
+RUN rm -rf /usr/local/nvm/versions/node/v20.9.0/lib/node_modules/npm/node_modules/ip 
+
 ENV NVIDIA_PRODUCT_NAME "TAO Toolkit"
 ENV TAO_TOOLKIT_VERSION="5.2.0"
-ENV TAO_TELEMETRY_SERVER="https://sqa-telemetry.metropolis.nvidia.com:443/api/v1/telemetry"
+ENV TAO_TELEMETRY_SERVER="https://api.tao.ngc.nvidia.com"
 
+# Microservices entrypoint
+ENV FLASK_APP=/usr/local/lib/python3.10/dist-packages/nvidia_tao_ds/api/app.py 
+
+# Include NGC CLI as an entrypoint.
 CMD [ "/bin/bash" ]

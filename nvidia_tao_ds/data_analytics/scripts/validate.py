@@ -130,7 +130,7 @@ def validate_dataset_kitti(config):
         logger.info("kitti files not Found. Exiting ")
         sys.exit(1)
     valid_kitti_filepaths = kitti.validate_and_merge_kitti_files(kitti_obj.label_paths,
-                                                                 config.data.output_dir,
+                                                                 config.results_dir,
                                                                  config.workers,
                                                                  image_data)
     invalid_filepath = os.path.join(COMMON_FILE_NAMES['INTERMEDIATE_KITTI_FOLDER'],
@@ -144,7 +144,7 @@ def validate_dataset_kitti(config):
     if config.apply_correction:
         corrected_df = kitti.correct_data(invalid_df)
         df = pd.concat([valid_df, corrected_df])
-        kitti.create_correct_kitti_files(df, corrected_df, config.data.output_dir, config.workers)
+        kitti.create_correct_kitti_files(df, corrected_df, config.results_dir, config.workers)
 
     logger.debug(f"Total time taken : {time.perf_counter() - start_time}")
 
@@ -168,7 +168,7 @@ def validate_dataset_coco(config):
     validate_summary(valid_df, invalid_df, config.data.input_format)
     if config.apply_correction:
         # correct the coco file and write into output_dir
-        coco.correct_data(coco_obj, config.data.output_dir)
+        coco.correct_data(coco_obj, config.results_dir)
 
     logger.debug(f"Total time taken : {time.perf_counter() - start_time}")
 
@@ -183,9 +183,8 @@ spec_root = os.path.dirname(os.path.abspath(__file__))
 def main(cfg: ExperimentConfig):
     """TAO Validate main wrapper function."""
     try:
-        if not os.path.exists(cfg.data.output_dir):
-            os.makedirs(cfg.data.output_dir)
-        cfg.results_dir = cfg.results_dir or cfg.data.output_dir
+        if not os.path.exists(cfg.results_dir):
+            os.makedirs(cfg.results_dir)
         if cfg.data.input_format == "COCO":
             validate_dataset_coco(cfg)
         elif cfg.data.input_format == "KITTI":

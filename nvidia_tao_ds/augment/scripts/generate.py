@@ -23,9 +23,9 @@ import os
 import sys
 import time
 
-from nvidia_tao_ds.annotations.kitti_to_coco import convert_kitti_to_coco
-from nvidia_tao_ds.annotations.coco_to_kitti import convert_coco_to_kitti
-from nvidia_tao_ds.augment.config.default_config import AugmentConfig
+from nvidia_tao_ds.annotations.conversion.kitti_to_coco import convert_kitti_to_coco
+from nvidia_tao_ds.annotations.conversion.coco_to_kitti import convert_coco_to_kitti
+from nvidia_tao_ds.augment.config.default_config import ExperimentConfig
 from nvidia_tao_ds.augment.pipeline import runner
 from nvidia_tao_ds.augment.utils import callable_dict, pipeline_dict
 from nvidia_tao_ds.augment.utils.helper import config_logger
@@ -46,20 +46,16 @@ def run_augment(config):
     """
     logger.info("Data augmentation started.")
     start_time = time.time()
-    num_gpus = max(1, config.num_gpus)
-    if num_gpus != len(config.gpu_ids):
-        config.gpu_ids = list(range(num_gpus))
-        logger.warning(f"Number of GPUs ({num_gpus}) doesn't match the length of GPU indices.")
-        logger.warning(f"Default GPU indices ({config.gpu_ids}) will be used.")
+    gpu_ids = [int(gpu) for gpu in os.environ['TAO_VISIBLE_DEVICES'].split(',')]
 
     image_dir = config.data.image_dir
     ann_path = config.data.ann_path
     batch_size = config.data.batch_size
     is_fixed_size = config.data.output_image_width and config.data.output_image_height
     dataset_type = config.data.dataset_type.lower()
-    output_dir = config.data.output_dataset
-    output_image_dir = os.path.join(config.data.output_dataset, 'images')
-    output_label_dir = os.path.join(config.data.output_dataset, 'labels')
+    output_dir = config.results_dir
+    output_image_dir = os.path.join(output_dir, 'images')
+    output_label_dir = os.path.join(output_dir, 'labels')
     if MPI_local_rank() == 0:
         os.makedirs(output_dir, exist_ok=True)
         os.makedirs(output_image_dir, exist_ok=True)
@@ -69,7 +65,7 @@ def run_augment(config):
     data_callable = callable_dict[dataset_type](
         image_dir, ann_path, batch_size,
         include_masks=config.data.include_masks,
-        shard_id=MPI_local_rank(), num_shards=len(config.gpu_ids))
+        shard_id=MPI_local_rank(), num_shards=len(gpu_ids))
 
     pipe = pipeline_dict[dataset_type](
         data_callable,
@@ -120,7 +116,7 @@ def run_augment(config):
 def check_gt_cache(cfg, is_kitti=False, gt_cache=None):
     """Generate COCO cache file."""
     if not os.path.exists(gt_cache):
-        root = os.path.abspath(cfg.data.output_dataset)
+        root = os.path.abspath(cfg.results_dir)
         if MPI_local_rank() == 0:
             logger.info(f"Mask cache file ({gt_cache}) is not found.")
             if is_kitti:
@@ -130,9 +126,9 @@ def check_gt_cache(cfg, is_kitti=False, gt_cache=None):
                     # convert kitti to coco
                     logger.info("Converting KITTI labels into COCO format...")
                     convert_kitti_to_coco(
-                        cfg.data.image_dir,
-                        cfg.data.ann_path,
-                        os.path.join(root, 'coco'),
+                        img_dir=cfg.data.image_dir,
+                        label_dir=cfg.data.ann_path,
+                        output_dir=os.path.join(root, 'coco'),
                         name=project_name)
                     logger.info("COCO format conversion completed.")
             else:
@@ -147,9 +143,9 @@ spec_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 @hydra_runner(
     config_path=os.path.join(spec_root, "experiment_specs"),
-    config_name="kitti", schema=AugmentConfig
+    config_name="kitti", schema=ExperimentConfig
 )
-def main(cfg: AugmentConfig):
+def main(cfg: ExperimentConfig):
     """TAO Augment main wrapper function."""
     try:
         is_kitti = cfg.data.dataset_type.lower() == 'kitti'
@@ -164,14 +160,13 @@ def main(cfg: AugmentConfig):
             from mpi4py import MPI  # noqa pylint: disable=C0415
             MPI.COMM_WORLD.Barrier()  # noqa pylint: disable=I1101
         # run augmention
-        cfg.results_dir = cfg.results_dir or cfg.data.output_dataset
         run_augment(cfg)
         if is_kitti and refine_box_enabled and MPI_local_rank() == 0:
             logger.info("Converting COCO json into KITTI format...")
             # convert coco to kitti
             convert_coco_to_kitti(
-                os.path.join(cfg.data.output_dataset, 'labels', 'output.json'),
-                output_dir=os.path.join(cfg.data.output_dataset, 'labels'),
+                annotations_file=os.path.join(cfg.results_dir, 'labels', 'output.json'),
+                output_dir=os.path.join(cfg.results_dir, 'labels'),
                 refine_box=refine_box_enabled
             )
             logger.info("KITTI conversion is complete.")

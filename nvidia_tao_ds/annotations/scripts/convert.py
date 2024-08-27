@@ -16,9 +16,9 @@
 
 import os
 import sys
-from nvidia_tao_ds.annotations.coco_to_kitti import convert_coco_to_kitti
+
 from nvidia_tao_ds.annotations.config.default_config import ExperimentConfig
-from nvidia_tao_ds.annotations.kitti_to_coco import convert_kitti_to_coco
+from nvidia_tao_ds.annotations.conversion.mapping import CONVERSION_MAPPING
 from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
 
@@ -29,7 +29,7 @@ from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
 )
 def main(cfg: ExperimentConfig) -> None:
     """Wrapper function for format conversion."""
-    cfg.results_dir = cfg.results_dir or cfg.data.output_dir
+    os.makedirs(cfg.results_dir, exist_ok=True)
     run_conversion(cfg=cfg)
 
 
@@ -37,21 +37,12 @@ def main(cfg: ExperimentConfig) -> None:
 def run_conversion(cfg: ExperimentConfig):
     """TAO annotation convert wrapper."""
     try:
-        if cfg.data.input_format == "KITTI" and cfg.data.output_format == "COCO":
-            convert_kitti_to_coco(
-                cfg.kitti.image_dir,
-                cfg.kitti.label_dir,
-                cfg.data.output_dir,
-                cfg.kitti.mapping,
-                cfg.kitti.project,
-                no_skip=cfg.kitti.no_skip,
-                preserve_hierarchy=cfg.kitti.preserve_hierarchy)
-        elif cfg.data.input_format == "COCO" and cfg.data.output_format == "KITTI":
-            convert_coco_to_kitti(
-                cfg.coco.ann_file,
-                cfg.data.output_dir)
+        input_format = cfg.data.input_format.lower()
+        output_format = cfg.data.output_format.lower()
+        if input_format not in CONVERSION_MAPPING or output_format not in CONVERSION_MAPPING[input_format]:
+            print(f"Unsupported conversion mapping: {input_format} -> {output_format}")
         else:
-            print("Unsupported format")
+            CONVERSION_MAPPING[input_format][output_format](cfg, verbose=cfg.verbose)
     except KeyboardInterrupt as e:
         print(f"Interrupting data conversion with error: {e}")
         sys.exit()

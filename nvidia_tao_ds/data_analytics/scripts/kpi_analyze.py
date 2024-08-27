@@ -11,7 +11,7 @@ import logging
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
 from nvidia_tao_ds.data_analytics.config.default_config import ExperimentConfig
 from nvidia_tao_ds.data_analytics.utils import data_format, data_process, kpi, wandb, local_visualize
-from nvidia_tao_ds.annotations.kitti_to_coco import construct_category_map
+from nvidia_tao_ds.annotations.conversion.kitti_to_coco import construct_category_map
 
 logger = logging.getLogger(__name__)
 
@@ -108,16 +108,16 @@ def analyze(cfg):
                                                None, None]
 
     # Dump KPI into csv
-    output_csv_path = os.path.join(cfg.data.output_dir, "kpi_calc.csv")
+    output_csv_path = os.path.join(cfg.results_dir, "kpi_calc.csv")
     final_kpi_df[["Sequence Name", "TP", "FP", "FN", "TN", "Pr", "Re", "Acc", "AP"]].to_csv(output_csv_path, index=False)
 
     logger.info(resultTable)
 
     # Visualize results locally or on wandb.
     if cfg.visualize.platform == "local":
-        local_visualize.plot_PR_curve(statistics, cfg.data.output_dir)
+        local_visualize.plot_PR_curve(statistics, cfg.results_dir)
     elif cfg.visualize.platform == "wandb":
-        wandb.login_and_initialize_wandb(cfg.wandb, cfg.data.output_dir)
+        wandb.login_and_initialize_wandb(cfg.wandb, cfg.results_dir)
         if not wandb.is_wandb_initialized():
             logger.info("Not able to login or initialize wandb. Skipping Wandb Initialization.")
         wandb.plot_PR_curve(final_kpi_df)
@@ -142,8 +142,8 @@ spec_root = os.path.dirname(os.path.abspath(__file__))
 def main(cfg: ExperimentConfig):
     """TAO KPI Analyzer main wrapper function."""
     try:
-        if not os.path.exists(cfg.data.output_dir):
-            os.makedirs(cfg.data.output_dir)
+        if not os.path.exists(cfg.results_dir):
+            os.makedirs(cfg.results_dir)
         if cfg.data.input_format in ("COCO", "KITTI"):
             analyze(cfg)
         else:

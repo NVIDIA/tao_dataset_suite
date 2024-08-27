@@ -15,84 +15,95 @@
 """Default config file."""
 
 from dataclasses import dataclass
-from omegaconf import MISSING
 from typing import Optional, List, Dict
 import multiprocessing
+from omegaconf import MISSING
+from nvidia_tao_ds.config_utils.default_config_utils import (
+    STR_FIELD,
+    INT_FIELD,
+    FLOAT_FIELD,
+    BOOL_FIELD,
+    LIST_FIELD,
+    DATACLASS_FIELD,
+)
 
 
 @dataclass
 class DataConfig:
     """Dataset configuration template."""
 
-    input_format: str = MISSING
-    output_dir: str = MISSING
-    kpi_sources: Optional[List[Dict[str, str]]] = MISSING
-    image_dir: str = MISSING
-    ann_path: str = MISSING
-    mapping: str = MISSING
+    input_format: str = STR_FIELD(value=MISSING, default_value="<specify input format>")
+    kpi_sources: Optional[List[Dict[str, str]]] = LIST_FIELD([])
+    image_dir: str = STR_FIELD(value=MISSING, default_value="<specify image directory>")
+    ann_path: str = STR_FIELD(
+        value=MISSING, default_value="<specify path to annotations>"
+    )
+    mapping: str = STR_FIELD(value=MISSING)
 
 
 @dataclass
 class GraphConfig:
     """Graph configuration template."""
 
-    height: int = 15
-    width: int = 15
-    show_all: bool = False
-    generate_summary_and_graph: bool = True
+    height: int = INT_FIELD(value=15)
+    width: int = INT_FIELD(value=15)
+    show_all: bool = BOOL_FIELD(value=False)
+    generate_summary_and_graph: bool = BOOL_FIELD(value=True)
 
 
 @dataclass
 class WandbConfig:
     """Wandb configuration template."""
 
-    project: Optional[str] = None
-    entity: Optional[str] = None
-    save_code: bool = False
-    name: Optional[str] = None
-    notes: Optional[str] = None
-    tags: Optional[List] = None
-    visualize: bool = False
+    project: Optional[str] = STR_FIELD(value=None, default_value="TAO data analytics")
+    entity: Optional[str] = STR_FIELD(value=None)
+    save_code: bool = BOOL_FIELD(value=False)
+    name: Optional[str] = STR_FIELD(value=None)
+    notes: Optional[str] = STR_FIELD(value=None)
+    tags: Optional[List] = LIST_FIELD(None)
+    visualize: bool = BOOL_FIELD(value=False)
 
 
 @dataclass
 class VisualizeConfig:
     """Visualize configuration template."""
 
-    platform: str = "local"
-    tag: Optional[str] = None
+    platform: str = STR_FIELD(value="local")
+    tag: Optional[str] = STR_FIELD(value=None)
 
 
 @dataclass
 class KpiConfig:
     """KPI configuration template."""
 
-    iou_threshold: float = 0.5
-    filter: bool = False
-    num_recall_points: int = 11
-    ignore_sqwidth: int = 0
-    conf_threshold: float = 0.5
-    is_internal: bool = False
+    iou_threshold: float = FLOAT_FIELD(value=0.5)
+    filter: bool = BOOL_FIELD(value=False)
+    num_recall_points: int = INT_FIELD(value=11)
+    ignore_sqwidth: int = INT_FIELD(value=0)
+    conf_threshold: float = FLOAT_FIELD(value=0.5)
+    is_internal: bool = BOOL_FIELD(value=False)
 
 
 @dataclass
 class ImageConfig:
     """Image configuration template."""
 
-    generate_image_with_bounding_box: bool = False
-    sample_size: int = 100
+    generate_image_with_bounding_box: bool = BOOL_FIELD(value=False)
+    sample_size: int = INT_FIELD(value=100)
 
 
 @dataclass
 class ExperimentConfig:
     """Experiment configuration template."""
 
-    workers: int = multiprocessing.cpu_count()
-    data: DataConfig = DataConfig()
-    image: ImageConfig = ImageConfig()
-    apply_correction: bool = False
-    graph: GraphConfig = GraphConfig()
-    wandb: WandbConfig = WandbConfig()
-    visualize: VisualizeConfig = VisualizeConfig()
-    kpi: KpiConfig = KpiConfig()
-    results_dir: Optional[str] = None
+    workers: int = INT_FIELD(value=multiprocessing.cpu_count())
+    data: DataConfig = DATACLASS_FIELD(DataConfig())
+    image: ImageConfig = DATACLASS_FIELD(ImageConfig())
+    apply_correction: bool = BOOL_FIELD(value=False)
+    graph: GraphConfig = DATACLASS_FIELD(GraphConfig())
+    wandb: WandbConfig = DATACLASS_FIELD(WandbConfig())
+    visualize: VisualizeConfig = DATACLASS_FIELD(VisualizeConfig())
+    kpi: KpiConfig = DATACLASS_FIELD(KpiConfig())
+    results_dir: Optional[str] = STR_FIELD(
+        value="/results", default_value="/results"
+    )

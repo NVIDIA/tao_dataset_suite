@@ -34,7 +34,7 @@ def process_augmented_coco(image_id, image, boxes_per_image, masks_per_image,
     ann_load = coco.loadAnns(coco.getAnnIds(imgIds=image_id))
     img_info = coco.loadImgs(ids=image_id)[0]
     img_name = img_info['file_name']
-    out_image_path = os.path.join(config.data.output_dataset, 'images', img_name)
+    out_image_path = os.path.join(config.results_dir, 'images', img_name)
     ann_per_image = []
     for j in range(len(ann_load)):
         ann_load[j]['bbox'] = list(map(lambda x: float(x), list(boxes_per_image[j])))
@@ -59,8 +59,8 @@ def process_augmented_kitti(image, boxes_per_image,
     label_path = decode_str(encoded_label_path)
     label_name = os.path.basename(label_path)
 
-    output_image_dir = os.path.join(config.data.output_dataset, 'images')
-    output_label_dir = os.path.join(config.data.output_dataset, 'labels')
+    output_image_dir = os.path.join(config.results_dir, 'images')
+    output_label_dir = os.path.join(config.results_dir, 'labels')
     # save augmented image
     save_image(Image.fromarray(image), os.path.join(output_image_dir, image_name))
     # dump kitti file with augmented labels

@@ -17,7 +17,7 @@
 import os
 import sys
 from nvidia_tao_ds.annotations.config.merge_config import MergeConfig
-from nvidia_tao_ds.annotations.merger import COCOMerger
+from nvidia_tao_ds.annotations.merger import COCOMerger, ODVGMerger
 from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
 
@@ -28,7 +28,6 @@ from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
 )
 def main(cfg: MergeConfig) -> None:
     """Wrapper function for format conversion."""
-    cfg.results_dir = cfg.results_dir or cfg.data.output_dir
     run_conversion(cfg=cfg)
 
 
@@ -36,9 +35,13 @@ def main(cfg: MergeConfig) -> None:
 def run_conversion(cfg: MergeConfig):
     """TAO annotation convert wrapper."""
     try:
-        if cfg.data.format == 'COCO':
+        if cfg.data.format.lower() == 'coco':
             output_path = os.path.join(cfg.results_dir, 'output.json')
             merger = COCOMerger(cfg.data.annotations)
+            merger.merge(output_path)
+        elif cfg.data.format.lower() == 'odvg':
+            output_path = os.path.join(cfg.results_dir, 'merged.json')
+            merger = ODVGMerger(cfg.data.annotations)
             merger.merge(output_path)
     except KeyboardInterrupt as e:
         print(f"Interrupting annotation merging with error: {e}")

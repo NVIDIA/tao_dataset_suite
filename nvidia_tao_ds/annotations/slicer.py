@@ -144,20 +144,34 @@ class COCOCategorySlicer(Slicer):
         query_categories = list(included - excluded)
         query_cat_ids = [cat_id_map[cat] for cat in query_categories]
 
+        # Update the category id to start from 1
+        remapped_categories, mapping = [], {}
+        idx = 1
+        for cat in categories:
+            if cat['id'] in query_cat_ids:
+                mapping[cat['id']] = idx
+                cat['id'] = idx
+                remapped_categories.append(cat)
+                idx += 1
+
         assert not filter_config.dump_remainder, "Feature not enable yet!"
         assert filter_config.reuse_categories, "Feature not enable yet!"
         image_ids = set()
         for cat_id in query_cat_ids:
             image_ids.update(data.getImgIds(catIds=[cat_id]))
+
+        # categories
         image_ids = list(image_ids)
         output = {}
-        output['categories'] = categories
+        output['categories'] = remapped_categories
         output['images'] = data.loadImgs(ids=image_ids)
         annot_ids = data.getAnnIds(imgIds=image_ids, iscrowd=None)
         output['annotations'] = []
         for annot_id in annot_ids:
             annot = data.loadAnns(annot_id)[0]
             if annot['category_id'] in query_cat_ids:
+                # update category id to the remapped version
+                annot['category_id'] = mapping[annot['category_id']]
                 output['annotations'].append(annot)
         dump_json(output, os.path.join(output_dir, 'kept.json'))
 
