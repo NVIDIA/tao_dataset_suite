@@ -1,5 +1,5 @@
 {
     "registry": "nvcr.io",
-    "repository": "nvstaging/tao/data_services_base_image",
+    "repository": "nvidia/tao/tao-toolkit",
     "digest": "sha256:407fea11455b47da32fb1d816cdc8166a5da755144cf23feb26a0c2c9e162cfe"
 }
