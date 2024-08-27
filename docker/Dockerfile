@@ -10,20 +10,6 @@ COPY docker/requirements-pip.txt requirements-pip.txt
 RUN pip install -r requirements-pip.txt && \
     rm -rf requirements-pip.txt
 
-# Installing TAO-Core
-# Installing TAO-Core
-COPY tao-core tao-core
-RUN cd tao-core && bash release/python/build_wheel.sh && \
-    find dist/ -name "nvidia_tao_core*.whl" -type f | xargs -n 1 pip install && \
-    rm -rf *
-
-# Installing PyTorch
-COPY tlt-pytorch tlt-pytorch
-RUN export WORKSPACE=/workspace/tlt-pytorch && \
-    cd ${WORKSPACE} && bash release/docker/build_wheel.sh && \
-    find dist/ -name "nvidia_tao_pytorch*.whl" -type f | xargs -n 1 pip install && \
-    rm -rf *
-
 # Install mmcv from source for our cuda versions.
 WORKDIR /opt
 COPY third_party/mmcv/mmcv.patch mmcv.patch
