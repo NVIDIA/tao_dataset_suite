@@ -22,6 +22,7 @@ import glob
 import os
 import setuptools
 
+
 # Rename all .py files to .py_tmp temporarily.
 ignore_list = ['__init__.py', '__version__.py']
 

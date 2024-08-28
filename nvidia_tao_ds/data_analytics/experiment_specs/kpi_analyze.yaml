@@ -1,6 +1,5 @@
 data:
   input_format: KITTI
-  output_dir: ???
   kpi_sources:
     - image_dir: ???
       ground_truth_ann_path: ???

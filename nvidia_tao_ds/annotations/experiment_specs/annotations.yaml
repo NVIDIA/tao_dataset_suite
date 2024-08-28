@@ -1,10 +1,10 @@
 data:
   input_format: "COCO"
   output_format: "KITTI"
-  output_dir: "/workspace/Output_Data"
 kitti:
-  image_dir: "/workspace/Input_Data/images"
-  label_dir: "/workspace/Input_Data/labels"
-  #  mapping: "/workspace/nvidia_tao_ds/annotations/experiment_specs/mapping.json"
+  image_dir: ???
+  label_dir: ???
+  mapping: ???
 coco:
-  ann_file: "/workspace/Output_Data/Input_Data.json"
+  ann_file: ???
+results_dir: ???

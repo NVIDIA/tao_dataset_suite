@@ -6,7 +6,6 @@ data:
   include_masks: False
   output_image_width: 1000
   output_image_height: 300
-  output_dataset: "/home/scratch.p3/yuw/datasets/kitti_out/"
 spatial_aug:
   rotation:
     angle: [0, 10, 30]

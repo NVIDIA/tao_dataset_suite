@@ -1,6 +1,5 @@
 apply_correction: True
 data:
-  output_dir: "result"
   input_format: "COCO"
   image_dir: ???
   ann_path: ???

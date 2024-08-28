@@ -30,6 +30,7 @@ from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
 from nvidia_tao_ds.core.mlops.wandb import is_wandb_initialized
 from nvidia_tao_ds.data_analytics.config.default_config import ExperimentConfig
+import nvidia_tao_ds.core.logging.logging as status_logging
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,21 @@ def object_count_visualize(valid_df, output_dir, graph_attr, wandb_attr):
         graph_data = count_df.head(100)
     else:
         graph_data = count_df
+
+    s_logger = status_logging.get_status_logger()
+    try:
+        # Write KPI dict to status callback
+        kpi_dict = graph_data.to_dict()
+        kpi_dict['analyze_type'] = 'object_count'
+        logging.info(f"Object Count KPI Dict: {kpi_dict}")
+        s_logger.kpi = kpi_dict
+        s_logger.write()
+    except Exception as e:
+        status_logging.get_status_logger().write(
+            message=str(e),
+            status_level=status_logging.Status.FAILURE
+        )
+        logging.error(f"Unable to write KPI dict to status logger: {str(e)}")
 
     # Create graph for object count
     if wandb_attr.visualize:
@@ -293,6 +309,22 @@ def bbox_area_visualize(valid_df, output_dir, graph_attr, wandb_attr):
         graph_data = area_mean.head(100)
     else:
         graph_data = area_mean
+
+    s_logger = status_logging.get_status_logger()
+    try:
+        # Write KPI dict to status callback
+        kpi_dict = graph_data.to_dict()
+        kpi_dict['analyze_type'] = 'bbox_area'
+        logging.info(f"Bbox area KPI Dict: {kpi_dict}")
+        s_logger.kpi = kpi_dict
+        s_logger.write()
+    except Exception as e:
+        status_logging.get_status_logger().write(
+            message=str(e),
+            status_level=status_logging.Status.FAILURE
+        )
+        logging.error(f"Unable to write KPI dict to status logger: {str(e)}")
+
     area_stats = valid_df['bbox_area'].describe()
     area_stat = pd.DataFrame({'Value': area_stats})
     area_stat['Value'] = area_stat['Value'].round(decimals=4)
@@ -752,9 +784,9 @@ def visualize_on_wandb(config, valid_df, invalid_df, image_df, len_image_data):
     Return:
         No explicit returns.
     """
-    wandb.login_and_initialize_wandb(config.wandb, config.data.output_dir)
+    wandb.login_and_initialize_wandb(config.wandb, config.results_dir)
     if config.graph.generate_summary_and_graph:
-        summary_and_graph(valid_df, invalid_df, image_df, config.data.output_dir,
+        summary_and_graph(valid_df, invalid_df, image_df, config.results_dir,
                           config.data.input_format, config.graph, config.wandb)
     if not is_wandb_initialized():
         logger.info("Not able to login or initialize wandb.Exiting..")
@@ -763,7 +795,7 @@ def visualize_on_wandb(config, valid_df, invalid_df, image_df, len_image_data):
         if len_image_data == 0:
             logging.info("Skipping visualizing images with Bounding boxes.Please provide correct path in data.image_dir .")
         else:
-            wandb.generate_images_with_bounding_boxes(valid_df, config.wandb, config.data.output_dir, config.image.sample_size)
+            wandb.generate_images_with_bounding_boxes(valid_df, config.wandb, config.results_dir, config.image.sample_size)
 
 
 def visualize_on_desktop(config, valid_df, invalid_df, image_df, image_data):
@@ -780,16 +812,16 @@ def visualize_on_desktop(config, valid_df, invalid_df, image_df, image_data):
         No explicit returns.
     """
     if config.graph.generate_summary_and_graph:
-        summary_and_graph(valid_df, invalid_df, image_df, config.data.output_dir,
+        summary_and_graph(valid_df, invalid_df, image_df, config.results_dir,
                           config.data.input_format, config.graph, config.wandb)
-        logging.info(f"Created Graphs inside {config.data.output_dir} folder")
+        logging.info(f"Created Graphs inside {config.results_dir} folder")
     # Generate Images with bounding boxes
     if config.image.generate_image_with_bounding_box:
         if len(image_data) == 0:
             logging.info("Skipping visualizing images with Bounding boxes.Please provide correct path in data.image_dir .")
         else:
             logger.info("Generating images with bounding boxes and labels.")
-            image.generate_images_with_bounding_boxes(valid_df, image_data, config.data.output_dir,
+            image.generate_images_with_bounding_boxes(valid_df, image_data, config.results_dir,
                                                       config.image.sample_size, config.workers, config.data.input_format)
 
 
@@ -819,7 +851,7 @@ def analyze_dataset_kitti(config):
         image_df = kitti.create_image_dataframe(image_data)
     # Validate and create big merged kitti files
     valid_kitti_filepaths = kitti.validate_and_merge_kitti_files(kitti_obj.label_paths,
-                                                                 config.data.output_dir,
+                                                                 config.results_dir,
                                                                  config.workers,
                                                                  image_data)
     invalid_filepath = os.path.join(COMMON_FILE_NAMES['INTERMEDIATE_KITTI_FOLDER'],
@@ -875,9 +907,8 @@ spec_root = os.path.dirname(os.path.abspath(__file__))
 def main(cfg: ExperimentConfig):
     """TAO Analyze main wrapper function."""
     try:
-        if not os.path.exists(cfg.data.output_dir):
-            os.makedirs(cfg.data.output_dir)
-        cfg.results_dir = cfg.results_dir or cfg.data.output_dir
+        if not os.path.exists(cfg.results_dir):
+            os.makedirs(cfg.results_dir)
         if cfg.data.input_format == "COCO":
             analyze_dataset_coco(cfg)
         elif cfg.data.input_format == "KITTI":

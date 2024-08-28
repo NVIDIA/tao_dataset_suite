@@ -17,7 +17,12 @@
 import argparse
 
 from nvidia_tao_ds.auto_label import scripts
-from nvidia_tao_ds.core.entrypoint.entrypoint import get_subtasks, launch
+from nvidia_tao_ds.core.entrypoint.entrypoint import get_subtasks, launch, command_line_parser
+
+
+def get_subtask_list():
+    """Return the list of subtasks by inspecting the scripts package."""
+    return get_subtasks(scripts)
 
 
 def main():
@@ -26,16 +31,16 @@ def main():
     parser = argparse.ArgumentParser(
         "auto_label",
         add_help=True,
-        description="TAO Toolkit entrypoint for MAL"
+        description="TAO Toolkit entrypoint for auto labeling"
     )
 
     # Build list of subtasks by inspecting the scripts package.
-    subtasks = get_subtasks(scripts)
+    subtasks = get_subtask_list()
+
+    args, unknown_args = command_line_parser(parser, subtasks)
 
     # Parse the arguments and launch the subtask.
-    launch(
-        parser, subtasks, task="auto_label"
-    )
+    launch(vars(args), unknown_args, subtasks, task="auto_label")
 
 
 if __name__ == '__main__':

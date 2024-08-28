@@ -17,6 +17,7 @@
 from datetime import datetime
 import logging
 
+from pytorch_lightning.utilities import rank_zero_only
 import wandb
 from wandb import AlertLevel
 import os
@@ -27,14 +28,15 @@ logger = logging.getLogger(__name__)
 _WANDB_INITIALIZED = False
 
 
-def alert(title, text, duration=300, level=0, is_master=True):
+@rank_zero_only
+def alert(title, text, duration=300, level=0):
     """Send alert."""
     alert_levels = {
         0: AlertLevel.INFO,
         1: AlertLevel.WARN,
         2: AlertLevel.ERROR
     }
-    if is_wandb_initialized() and is_master:
+    if is_wandb_initialized():
         wandb.alert(
             title=title,
             text=text,

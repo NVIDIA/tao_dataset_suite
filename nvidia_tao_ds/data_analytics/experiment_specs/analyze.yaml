@@ -1,6 +1,5 @@
 data:
   input_format: "KITTI"
-  output_dir: "result"
   image_dir: ???
   ann_path: ???
 workers: 36

@@ -16,7 +16,6 @@
 
 import os
 import setuptools
-
 from release.python.utils import utils
 
 PACKAGE_LIST = [

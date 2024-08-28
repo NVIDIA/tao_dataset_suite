@@ -14,12 +14,16 @@
 
 """Logger class for data-services."""
 
-from abc import abstractmethod
 import atexit
 from datetime import datetime
 import json
 import logging
 import os
+
+from nvidia_tao_core.cloud_handlers.utils import status_callback
+
+from torch import distributed as torch_distributed
+from pytorch_lightning.utilities import rank_zero_only, rank_zero_warn
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +72,13 @@ status_level_to_name = {
 class BaseLogger(object):
     """File logger class."""
 
-    def __init__(self, is_master=False, verbosity=Verbosity.DISABLE):
-        """Base logger class."""
-        self.is_master = is_master
+    def __init__(self, verbosity=Verbosity.INFO):
+        """Base logger class.
+
+        Args:
+            verbsority (int): Logging level
+
+        """
         self.verbosity = verbosity
         self.categorical = {}
         self.graphical = {}
@@ -78,10 +86,14 @@ class BaseLogger(object):
 
     @property
     def date(self):
-        """Get date from the status."""
+        """Get date from the status.
+
+        Returns:
+            Formatted string containing mm/dd/yyyy.
+        """
         date_time = datetime.now()
         date_object = date_time.date()
-        return "{}/{}/{}".format(  # noqa pylint: disable=C0209
+        return "{}/{}/{}".format(
             date_object.month,
             date_object.day,
             date_object.year
@@ -89,10 +101,14 @@ class BaseLogger(object):
 
     @property
     def time(self):
-        """Get date from the status."""
+        """Get date from the status.
+
+        Returns:
+            Formatted string with time in hh:mm:ss
+        """
         date_time = datetime.now()
         time_object = date_time.time()
-        return "{}:{}:{}".format(  # noqa pylint: disable=C0209
+        return "{}:{}:{}".format(
             time_object.hour,
             time_object.minute,
             time_object.second
@@ -100,7 +116,7 @@ class BaseLogger(object):
 
     @property
     def categorical(self):
-        """Categorical data to be logged."""
+        """Property getter for categorical data to be logged."""
         return self._categorical
 
     @categorical.setter
@@ -110,7 +126,7 @@ class BaseLogger(object):
 
     @property
     def graphical(self):
-        """Graphical data to be logged."""
+        """Property getter for graphical data to be logged."""
         return self._graphical
 
     @graphical.setter
@@ -128,32 +144,46 @@ class BaseLogger(object):
         """Set KPI data."""
         self._kpi = value
 
+    @rank_zero_only
     def flush(self):
         """Flush the logger."""
         pass
 
     def format_data(self, data: dict):
         """Format the data."""
-        if isinstance(data, dict):
-            data_string = []
-            for key, value in data.items():
-                data_string.append(
-                    f"{key}: {self.format_data(value)}"
-                    if isinstance(value, dict) else value
-                )
-        return ", ".join(data_string)
+        if not isinstance(data, dict):
+            raise TypeError(f"Data must be a dictionary and not type {type(data)}.")
+        data_string = json.dumps(data)
+        return data_string
 
+    @rank_zero_only
     def log(self, level, string):
-        """Log the data string."""
+        """Log the data string.
+
+        This method is implemented only for rank 0 process in a multiGPU
+        session.
+
+        Args:
+            level (int): Log level requested.
+            string (string): Message to be written.
+        """
         if level >= self.verbosity:
             logging.log(level, string)
 
-    @abstractmethod
+    @rank_zero_only
     def write(self, data=None,
               status_level=Status.RUNNING,
               verbosity_level=Verbosity.INFO,
               message=None):
-        """Write data out to the log file."""
+        """Write data out to the log file.
+
+        Args:
+            data (dict): Dictionary of data to be written out.
+            status_level (nvidia_tao_pytorch.core.loggers.api_logging.Status): Current status of the
+                process being logged. DEFAULT=Status.RUNNING
+            verbosity level (nvidia_tao_pytorch.core.loggers.api_logging.Vebosity): Setting
+                logging level of the Status logger. Default=Verbosity.INFO
+        """
         if self.verbosity > Verbosity.DISABLE:
             if not data:
                 data = {}
@@ -177,40 +207,67 @@ class BaseLogger(object):
                 data["kpi"] = self.kpi
 
             data_string = self.format_data(data)
-            if self.is_master:
-                self.log(verbosity_level, data_string)
+            self.log(verbosity_level, data_string)
             self.flush()
+            status_callback(data_string)
 
 
 class StatusLogger(BaseLogger):
     """Simple logger to save the status file."""
 
     def __init__(self, filename=None,
-                 is_master=False,
                  verbosity=Verbosity.INFO,
                  append=True):
-        """Logger to write out the status."""
-        super().__init__(is_master=is_master, verbosity=verbosity)
+        """Logger to write out the status.
+
+        Args:
+            filename (str): Path to the log file.
+            verbosity (str): Logging level. Default=INFO
+            append (bool): Flag to open the log file in
+                append mode or write mode. Default=True
+        """
+        super().__init__(verbosity=verbosity)
         self.log_path = os.path.realpath(filename)
-        if is_master:
-            if os.path.exists(self.log_path):
-                logger.info("Log file already exists at %s", self.log_path)
-            self.l_file = open(self.log_path, "a" if append else "w", encoding='utf-8')  # noqa pylint: disable=R1732
+        if os.path.exists(self.log_path):
+            rank_zero_warn(
+                f"Log file already exists at {self.log_path}"
+            )
+        # Open the file only if rank == 0.
+        distributed = torch_distributed.is_initialized() and torch_distributed.is_available()
+        global_rank_0 = (not distributed) or (distributed and torch_distributed.get_rank() == 0)
+        if global_rank_0:
+            self.l_file = open(self.log_path, "a" if append else "w")
             atexit.register(self.l_file.close)
 
+    @rank_zero_only
     def log(self, level, string):
-        """Log the data string."""
+        """Log the data string.
+
+        This method is implemented only for rank 0 process in a multiGPU
+        session.
+
+        Args:
+            level (int): Log level requested.
+            string (string): Message to be written.
+        """
         if level >= self.verbosity:
             self.l_file.write(string + "\n")
 
+    @rank_zero_only
     def flush(self):
         """Flush contents of the log file."""
-        if self.is_master:
-            self.l_file.flush()
+        self.l_file.flush()
 
     @staticmethod
     def format_data(data):
-        """Format the dictionary data."""
+        """Format the dictionary data.
+
+        Args:
+            data(dict): Dictionary data to be formatted to a json string.
+
+        Returns
+            data_string (str): json formatted string from a dictionary.
+        """
         if not isinstance(data, dict):
             raise TypeError(f"Data must be a dictionary and not type {type(data)}.")
         data_string = json.dumps(data)

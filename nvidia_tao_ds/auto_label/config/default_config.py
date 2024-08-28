@@ -14,119 +14,165 @@
 
 """Default config file."""
 
-from typing import List, Optional
-from dataclasses import dataclass, field
-from omegaconf import MISSING
+from typing import List, Optional, Dict
+from dataclasses import dataclass
+from nvidia_tao_ds.config_utils.default_config_utils import (
+    STR_FIELD,
+    INT_FIELD,
+    BOOL_FIELD,
+    LIST_FIELD,
+    DATACLASS_FIELD,
+)
+
+from nvidia_tao_ds.auto_label.config.mal_config import MALInferenceExpConfig, MALEvalExpConfig, MALDatasetConfig, MALModelConfig, MALTrainExpConfig
+from nvidia_tao_ds.auto_label.config.dataset import GDINOAugmentationConfig
+from nvidia_tao_ds.auto_label.config.model import GDINOModelConfig
+from nvidia_tao_ds.auto_label.config.train import GDINOTrainExpConfig
 
 
 @dataclass
-class InferConfig:
-    """Inference configuration template."""
+class MALConfig:
+    """MAL config."""
 
-    ann_path: str = MISSING
-    img_dir: str = MISSING
-    label_dump_path: str = MISSING
-    batch_size: int = 3
-    load_mask: bool = False
-
-
-@dataclass
-class EvalConfig:
-    """Evaluation configuration template."""
-
-    batch_size: int = 3
-    use_mixed_model_test: bool = False
-    use_teacher_test: bool = False
-    comp_clustering: bool = False
-    use_flip_test: bool = False
-
-
-@dataclass
-class DataConfig:
-    """Data configuration template."""
-
-    type: str = 'coco'
-    crop_size: int = 512
-    train_ann_path: str = ''
-    train_img_dir: str = ''
-    val_ann_path: str = ''
-    val_img_dir: str = ''
-    min_obj_size: float = 2048
-    max_obj_size: float = 1e10
-    num_workers_per_gpu: int = 2
-    load_mask: bool = True
+    dataset: MALDatasetConfig = DATACLASS_FIELD(
+        MALDatasetConfig(),
+        description="Configuration parameters for MAL dataset"
+    )
+    train: MALTrainExpConfig = DATACLASS_FIELD(
+        MALTrainExpConfig(),
+        description="Configuration parameters for MAL train"
+    )
+    model: MALModelConfig = DATACLASS_FIELD(
+        MALModelConfig(),
+        description="Configuration parameters for MAL model"
+    )
+    inference: MALInferenceExpConfig = DATACLASS_FIELD(
+        MALInferenceExpConfig(),
+        description="Configuration parameters for MAL inference"
+    )
+    evaluate: MALEvalExpConfig = DATACLASS_FIELD(
+        MALEvalExpConfig(),
+        description="Configuration parameters for MAL evaluation"
+    )
+    checkpoint: Optional[str] = STR_FIELD(
+        None,
+        default_value="",
+        description="MAL model checkpoint path",
+    )
+    results_dir: Optional[str] = STR_FIELD(
+        value=None,
+        default_value="",
+        description="Result directory",
+    )
 
 
 @dataclass
-class ModelConfig:
-    """Model configuration template."""
+class GDINOConfig:
+    """Grounding DINO config."""
 
-    arch: str = 'vit-mae-base/16'
-    frozen_stages: List[int] = field(default_factory=lambda: [-1])
-    mask_head_num_convs: int = 4
-    mask_head_hidden_channel: int = 256
-    mask_head_out_channel: int = 256
-    teacher_momentum: float = 0.996
-    not_adjust_scale: bool = False
-    mask_scale_ratio_pre: int = 1
-    mask_scale_ratio: float = 2.0
-    vit_dpr: float = 0
+    @dataclass
+    class GDINODataConfig:
+        """DINO dataset config used for auto-labeling."""
 
+        image_dir: Optional[str] = STR_FIELD(
+            None,
+            default_value="",
+            description="Image root directory",
+        )
+        noun_chunk_path: Optional[str] = STR_FIELD(
+            value=None,
+            default_value=""
+        )
+        class_names: Optional[List[str]] = LIST_FIELD(
+            arrList=[],
+            description="List of classes to run auto-labeling"
+        )
+        augmentation: GDINOAugmentationConfig = DATACLASS_FIELD(
+            GDINOAugmentationConfig(),
+            description="Configuration parameters for Grounding DINO augmenation"
+        )
 
-@dataclass
-class TrainConfig:
-    """Train configuration template."""
+    train: GDINOTrainExpConfig = DATACLASS_FIELD(
+        GDINOTrainExpConfig(),
+        description="Configuration parameters for Grounding DINO train"
+    )
+    model: GDINOModelConfig = DATACLASS_FIELD(
+        GDINOModelConfig(),
+        description="Configuration parameters for Grounding DINO model"
+    )
+    dataset: GDINODataConfig = DATACLASS_FIELD(
+        GDINODataConfig(),
+        description="Configuration parameters for Grounding DINO dataset"
+    )
 
-    seed: int = 1
-    num_epochs: int = 10
-    save_every_k_epoch: int = 1
-    val_interval: int = 1
-    batch_size: int = 3
-    accum_grad_batches: int = 1
-    use_amp: bool = True
+    checkpoint: Optional[str] = STR_FIELD(
+        None,
+        default_value="",
+        description="Grounding model checkpoint path",
+    )
 
-    # optim
-    optim_type: str = 'adamw'
-    optim_momentum: float = 0.9
-    lr: float = 0.000001
-    min_lr: float = 0
-    min_lr_rate: float = 0.2
-    num_wave: float = 1
-    wd: float = 0.0005
-    optim_eps: float = 1e-8
-    optim_betas: List[float] = field(default_factory=lambda: [0.9, 0.9])
-    warmup_epochs: int = 1
+    results_dir: Optional[str] = STR_FIELD(
+        value=None,
+        default_value="",
+        description="Result directory",
+    )
 
-    margin_rate: List[float] = field(default_factory=lambda: [0, 1.2])
-    test_margin_rate: List[float] = field(default_factory=lambda: [0.6, 0.6])
-    mask_thres: List[float] = field(default_factory=lambda: [0.1])
-
-    # loss
-    loss_mil_weight: float = 4
-    loss_crf_weight: float = 0.5
-
-    # crf
-    crf_zeta: float = 0.1
-    crf_kernel_size: int = 3
-    crf_num_iter: int = 100
-    loss_crf_step: int = 4000
-    loss_mil_step: int = 1000
-    crf_size_ratio: int = 1
-    crf_value_high_thres: float = 0.9
-    crf_value_low_thres: float = 0.1
+    iteration_scheduler: List[Dict[str, float]] = LIST_FIELD(
+        arrList=[{"conf_threshold": 0.5, "nms_threshold": 0.0}],
+        default_values=[{"conf_threshold": 0.5, "nms_threshold": 0.0}],
+        description="""The list of iteration schedule. Default is one iteration with confidence threshold of 0.5.
+                    Next iteration eliminates classes/noun chunks that have been already detected."""
+    )
+    visualize: bool = BOOL_FIELD(
+        value=True,
+        default_value=True,
+        description="Flag to enable visualization of bounding boxes."
+    )
 
 
 @dataclass
 class ExperimentConfig:
     """Experiment configuration template."""
 
-    gpu_ids: List[int] = field(default_factory=lambda: [])
-    strategy: str = 'ddp_sharded'
-    num_nodes: int = 1
-    checkpoint: Optional[str] = None
-    dataset: DataConfig = DataConfig()
-    train: TrainConfig = TrainConfig()
-    model: ModelConfig = ModelConfig()
-    inference: InferConfig = InferConfig()
-    evaluate: EvalConfig = EvalConfig()
-    results_dir: str = MISSING
+    gpu_ids: List[int] = LIST_FIELD(
+        arrList=[0],
+        default_value=[0],
+        description="Indices of GPUs to use"
+    )
+    num_gpus: int = INT_FIELD(value=1,
+                              default_value=1,
+                              description="Number of GPUs to use")
+    batch_size: int = INT_FIELD(value=4,
+                                default_value=4,
+                                valid_min=1,
+                                description="Batch size")
+    num_workers: int = INT_FIELD(value=8,
+                                 default_value=8,
+                                 valid_min=1,
+                                 description="Number of workers for dataloader")
+
+    autolabel_type: str = STR_FIELD(
+        value="mal",
+        default_value="mal",
+        description="Type of auto-labeling to run",
+        valid_options="mal,grounding_dino"
+    )
+
+    mal: MALConfig = DATACLASS_FIELD(
+        MALConfig(),
+        description="Configuration parameters for MAL"
+    )
+    grounding_dino: GDINOConfig = DATACLASS_FIELD(
+        GDINOConfig(),
+        description="Configuration parameters for Grounding DINO"
+    )
+
+    results_dir: str = STR_FIELD(
+        value="/results",
+        default_value="/results",
+        description="Result directory",
+    )
+
+    def __post_init__(self):
+        """assertion check."""
+        assert self.autolabel_type in ["mal", "grounding_dino"], f"Invalid option encountered. {self.autolabel_type}"
