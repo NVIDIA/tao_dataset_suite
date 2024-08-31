@@ -13,7 +13,7 @@ marshmallow_enum==1.5.1
 nvidia-eff==0.6.5
 matplotlib>=3.0.3
 mpi4py==3.1.4
-opencv-python==4.8.0.74
+opencv-python==4.8.1.78
 omegaconf==2.2.2
 pycocotools==2.0.7
 pydocstyle==6.3.0
