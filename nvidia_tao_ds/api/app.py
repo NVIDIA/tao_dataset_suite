@@ -23,7 +23,7 @@ import uuid
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
 from apispec_webframeworks.flask import FlaskPlugin
-from nvidia_tao_ds.api.api_utils import microservice_utils, module_utils, ngc_utils, process_queue, json_schema_validation, dataclass2json_converter
+from nvidia_tao_core.api_utils import microservice_utils, module_utils, ngc_utils, process_queue, json_schema_validation, dataclass2json_converter
 from flask import Flask, jsonify, make_response, render_template, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -113,7 +113,7 @@ spec.components.header("X-RateLimit-Limit", {
         "maximum": sys.maxsize,
     }
 })
-spec.components.security_scheme("api-key", {"type": "apiKey", "in": "header", "name": "ngc_api_key"})
+spec.components.security_scheme("api-key", {"type": "apiKey", "in": "header", "name": "ngc_key"})
 
 
 
@@ -142,7 +142,7 @@ class ErrorRspSchema(Schema):
         """Class enabling sorting field values by the order in which they are declared"""
 
         ordered = True
-    error_desc = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=1000))
+    error = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=1000))
     error_code = fields.Int(validate=fields.validate.Range(min=-sys.maxsize - 1, max=sys.maxsize), format=sys_int_format())
 
 
@@ -166,6 +166,21 @@ class ActionsEnum(Enum):
     merge = 'merge'
     slice = 'slice'
     generate = 'generate'
+
+
+class AllowedDockerEnvVariables(Enum):
+    """Allowed docker environment variables while launching DNN containers"""
+
+    WANDB_API_KEY = "WANDB_API_KEY"
+    WANDB_BASE_URL = "WANDB_BASE_URL"
+    WANDB_USERNAME = "WANDB_USERNAME"
+    WANDB_ENTITY = "WANDB_ENTITY"
+    WANDB_PROJECT = "WANDB_PROJECT"
+    CLEARML_WEB_HOST = "CLEARML_WEB_HOST"
+    CLEARML_API_HOST = "CLEARML_API_HOST"
+    CLEARML_FILES_HOST = "CLEARML_FILES_HOST"
+    CLEARML_API_ACCESS_KEY = "CLEARML_API_ACCESS_KEY"
+    CLEARML_API_SECRET_KEY = "CLEARML_API_SECRET_KEY"
 
 
 class MLOpsEnum(Enum):
@@ -276,7 +291,7 @@ class PtmReqSchema(Schema):
         """Class enabling sorting field values by the order in which they are declared"""
 
         ordered = True
-    ngc_api_key = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=1000))
+    ngc_key = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=1000))
 
 
 class PtmSchema(Schema):
@@ -301,18 +316,6 @@ class CallbackSchema(Schema):
     key = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=2048), allow_none=True)
 
 
-class MLOpsSchema(Schema):
-    """Class defining MLOps schema"""
-
-    class Meta:
-        """Class enabling sorting field values by the order in which they are declared"""
-
-        ordered = True
-    name = EnumField(MLOpsEnum)
-    uri = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=2048), allow_none=True)
-    key = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=2048), allow_none=True)
-
-
 class PostActionReqSchema(Schema):
     """Class defining Post Action Request schema"""
 
@@ -324,7 +327,6 @@ class PostActionReqSchema(Schema):
     storage = fields.Raw()
     ptm = fields.Nested(PtmSchema, allow_none=True)
     callback = fields.Nested(CallbackSchema, allow_none=True)
-    mlops = fields.Nested(MLOpsSchema, allow_none=True)
 
 
 class PostActionRspSchema(Schema):
@@ -344,7 +346,7 @@ class NVCFReqSchema(Schema):
         """Class enabling sorting field values by the order in which they are declared"""
 
         ordered = True
-    ngc_api_key = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=1000), allow_none=True)
+    ngc_key = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=1000), allow_none=True)
     api_endpoint = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=1000), allow_none=True)
     neural_network_name = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=1000), allow_none=True)
     action_name = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=1000), allow_none=True)
@@ -352,7 +354,6 @@ class NVCFReqSchema(Schema):
     storage = fields.Raw()
     ptm = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=1000), allow_none=True)
     callback = fields.Nested(CallbackSchema, allow_none=True)
-    mlops = fields.Nested(MLOpsSchema, allow_none=True)
     job_id = fields.Str(format="uuid", validate=fields.validate.Length(max=36), allow_none=True)
 
     telemetry_opt_out = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=1000), allow_none=True)
@@ -363,6 +364,7 @@ class NVCFReqSchema(Schema):
     tao_api_status_callback_url = fields.URL(validate=fields.validate.Length(max=2048))
     automl_experiment_number = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=1000), allow_none=True)
     hosted_service_interaction = fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=1000), allow_none=True)
+    docker_env_vars = fields.Dict(keys=EnumField(AllowedDockerEnvVariables), values=fields.Str(format="regex", regex=r'.*', validate=fields.validate.Length(max=500), allow_none=True))
 
 
 @app.route('/api/v1/neural_networks', methods=['GET'])
@@ -421,7 +423,7 @@ def get_actions(neural_network_name):
     _, actions = module_utils.get_neural_network_actions(neural_network_name)
 
     if not actions:
-        metadata = {"error_desc": "Invalid Neural Network Name", "error_code": 1}
+        metadata = {"error": "Invalid Neural Network Name", "error_code": 1}
         schema = ErrorRspSchema()
         return make_response(jsonify(schema.dump(schema.load(metadata))), 400)
         
@@ -455,7 +457,7 @@ def list_ptms(neural_network_name):
         content:
           application/json:
             schema: PtmReqSchema
-        description: Login request with ngc_api_key
+        description: Login request with NGC key
         required: true
       responses:
         200:
@@ -469,12 +471,12 @@ def list_ptms(neural_network_name):
     """
     schema = PtmReqSchema()
     request_dict = schema.dump(schema.load(request.get_json(force=True)))
-    key = request_dict.get('ngc_api_key', 'invalid_key')
+    key = request_dict.get('ngc_key', 'invalid_key')
 
     try:
         ngc_token = ngc_utils.get_ngc_token(key)
     except Exception as err:
-        metadata = {"error_desc": "Unauthorized: " + err, "error_code": 7}
+        metadata = {"error": "Unauthorized: " + err, "error_code": 7}
         schema = ErrorRspSchema()
         return make_response(jsonify(schema.dump(schema.load(metadata))), 401)
 
@@ -484,7 +486,7 @@ def list_ptms(neural_network_name):
         schema_dict = schema.dump(schema.load(data))
         return make_response(jsonify(schema_dict), 200)
     except Exception as err:
-        metadata = {"error_desc": f"{err}", "error_code": 8}
+        metadata = {"error": f"{err}", "error_code": 8}
         schema = ErrorRspSchema()
         return make_response(jsonify(schema.dump(schema.load(metadata))), 400)
 
@@ -524,26 +526,31 @@ def get_schema(neural_network_name, action_name):
                $ref: '#/components/headers/X-RateLimit-Limit'
     """
     ep_mappings = module_utils.get_entry_point_module_mapping()
-    if not neural_network_name or neural_network_name not in ep_mappings.keys():
-        metadata = {"error_desc": "Invalid Neural Network Name", "error_code": 1}
+    entrypoint_network_name = neural_network_name
+    if neural_network_name == "augment":
+        entrypoint_network_name = "augmentation"
+    if neural_network_name == "data_analytics":
+        entrypoint_network_name = "analytics"
+
+    if not entrypoint_network_name or entrypoint_network_name not in ep_mappings.keys():
+        metadata = {"error": "Invalid Neural Network Name", "error_code": 1}
         schema = ErrorRspSchema()
         return make_response(jsonify(schema.dump(schema.load(metadata))), 400)
     
-    _, actions = module_utils.get_neural_network_actions(neural_network_name)
+    _, actions = module_utils.get_neural_network_actions(entrypoint_network_name)
     if action_name not in actions:
-        metadata = {"error_desc": "Invalid Action Name", "error_code": 2}
+        metadata = {"error": "Invalid Action Name", "error_code": 2}
         schema = ErrorRspSchema()
         return make_response(jsonify(schema.dump(schema.load(metadata))), 400)
     
     try:
-        ep_module = ep_mappings[neural_network_name].split(".")
-        imported_module = dataclass2json_converter.import_module_from_path(f"{'.'.join(ep_module[:2])}.config.default_config")
+        imported_module = dataclass2json_converter.import_module_from_path(f"nvidia_tao_core.config.{neural_network_name}.default_config")
         expConfig = imported_module.ExperimentConfig()
         json_with_meta_config = dataclass2json_converter.dataclass_to_json(expConfig)
         json_schema = dataclass2json_converter.create_json_schema(json_with_meta_config)
         return make_response(json_schema, 200)
     except Exception as err:
-        metadata = {"error_desc": f"{err}", "error_code": 2}
+        metadata = {"error": f"{err}", "error_code": 2}
         schema = ErrorRspSchema()
         return make_response(jsonify(schema.dump(schema.load(metadata))), 400)
 
@@ -588,13 +595,18 @@ def post_action(neural_network_name, action_name):
                $ref: '#/components/headers/X-RateLimit-Limit'
     """
     # Module and action validations
-    module, actions = module_utils.get_neural_network_actions(neural_network_name)
+    entrypoint_network_name = neural_network_name
+    if neural_network_name == "augment":
+        entrypoint_network_name = "augmentation"
+    if neural_network_name == "data_analytics":
+        entrypoint_network_name = "analytics"
+    module, actions = module_utils.get_neural_network_actions(entrypoint_network_name)
     if not module:
-        metadata = {"error_desc": "Invalid Neural Network Name", "error_code": 1}
+        metadata = {"error": "Invalid Neural Network Name", "error_code": 1}
         schema = ErrorRspSchema()
         return make_response(jsonify(schema.dump(schema.load(metadata))), 400)
     if action_name not in actions:
-        metadata = {"error_desc": "Invalid Action Name", "error_code": 2}
+        metadata = {"error": "Invalid Action Name", "error_code": 2}
         schema = ErrorRspSchema()
         return make_response(jsonify(schema.dump(schema.load(metadata))), 400)
 
@@ -602,15 +614,13 @@ def post_action(neural_network_name, action_name):
     data = request.get_json(force=True)
     request_json_schema = data["specs"]
     if request_json_schema is None:
-        metadata = {"error_desc": "No JSON data provided", "error_code": 3}
+        metadata = {"error": "No JSON data provided", "error_code": 3}
         schema = ErrorRspSchema()
         return make_response(jsonify(schema.dump(schema.load(metadata))), 400) 
     
     try:
         # Fetching the JSON schema
-        ep_mappings = module_utils.get_entry_point_module_mapping()
-        ep_module = ep_mappings[neural_network_name].split(".")
-        imported_module = dataclass2json_converter.import_module_from_path(f"{'.'.join(ep_module[:2])}.config.default_config")
+        imported_module = dataclass2json_converter.import_module_from_path(f"nvidia_tao_core.config.{neural_network_name}.default_config")
         expConfig = imported_module.ExperimentConfig()
         json_with_meta_config = dataclass2json_converter.dataclass_to_json(expConfig)
         json_schema = dataclass2json_converter.create_json_schema(json_with_meta_config)
@@ -618,13 +628,13 @@ def post_action(neural_network_name, action_name):
         # Validating the JSON schema
         validation_status = json_schema_validation.validate_jsonschema(request_json_schema, json_schema["properties"])
         if validation_status:
-            metadata = {"error_desc": validation_status, "error_code": 4}
+            metadata = {"error": validation_status, "error_code": 4}
             print(metadata)
             schema = ErrorRspSchema()
             print(schema)
             return make_response(jsonify(schema.dump(schema.load(metadata))), 400)
     except Exception as err:
-        metadata = {"error_desc": "Unexpected error encountered while processing the JSON schema", "error_code": 4}
+        metadata = {"error": "Unexpected error encountered while processing the JSON schema", "error_code": 4}
         schema = ErrorRspSchema()
         return make_response(jsonify(schema.dump(schema.load(metadata))), 400)
     
@@ -634,7 +644,7 @@ def post_action(neural_network_name, action_name):
         job_id = str(uuid.uuid4())
 
     # Adding the request to a queue
-    process_queue.queue.append({'job_id': job_id, 'data': data, 'neural_network_name': neural_network_name, 'action': action_name, 'status': 'Pending'})
+    process_queue.queue.append({'job_id': job_id, 'data': data, 'neural_network_name': entrypoint_network_name, 'action': action_name, 'status': 'Pending'})
 
     # Returning the response
     data = { 'job_id': job_id }
@@ -739,7 +749,7 @@ def get_job_status(neural_network_name, action_name, job_id):
                $ref: '#/components/headers/X-RateLimit-Limit'
     """
     if not is_valid_uuid(job_id):
-        metadata = {"error_desc": "Invalid Job ID Format", "error_code": 5}
+        metadata = {"error": "Invalid Job ID Format", "error_code": 5}
         schema = ErrorRspSchema()
         response = make_response(jsonify(schema.dump(schema.load(metadata))), 400)
         return response
@@ -765,7 +775,7 @@ def get_job_status(neural_network_name, action_name, job_id):
 
     # If no job is found
     if not job_details:
-        metadata = {"error_desc": "Job ID Not Present", "error_code": 6}
+        metadata = {"error": "Job ID Not Present", "error_code": 6}
         schema = ErrorRspSchema()
         response = make_response(jsonify(schema.dump(schema.load(metadata))), 400)
         return response
@@ -773,11 +783,11 @@ def get_job_status(neural_network_name, action_name, job_id):
     # Module and action validations
     module, actions = job_details['neural_network_name'], job_details['action']
     if not module:
-        metadata = {"error_desc": "Invalid Neural Network Name", "error_code": 1}
+        metadata = {"error": "Invalid Neural Network Name", "error_code": 1}
         schema = ErrorRspSchema()
         return make_response(jsonify(schema.dump(schema.load(metadata))), 400)
     if action_name not in actions:
-        metadata = {"error_desc": "Invalid Action Name", "error_code": 2}
+        metadata = {"error": "Invalid Action Name", "error_code": 2}
         schema = ErrorRspSchema()
         return make_response(jsonify(schema.dump(schema.load(metadata))), 400)
                 
@@ -818,7 +828,7 @@ def post_nvcf_action():
         resp = microservice_utils.invoke_microservices(request_dict)
         return make_response(jsonify(resp), 200)
     except Exception as err:
-        metadata = {"error_desc": str(err), "error_code": 9}
+        metadata = {"error": str(err), "error_code": 9}
         schema = ErrorRspSchema()
         return make_response(jsonify(schema.dump(schema.load(metadata))), 400)
 

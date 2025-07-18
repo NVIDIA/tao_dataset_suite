@@ -17,7 +17,7 @@
 import os
 import sys
 
-from nvidia_tao_ds.annotations.config.default_config import ExperimentConfig
+from nvidia_tao_core.config.annotations.default_config import ExperimentConfig
 from nvidia_tao_ds.annotations.conversion.mapping import CONVERSION_MAPPING
 from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
@@ -37,6 +37,8 @@ def main(cfg: ExperimentConfig) -> None:
 def run_conversion(cfg: ExperimentConfig):
     """TAO annotation convert wrapper."""
     try:
+        if cfg.get("kitti", {}).get("mapping", None) == "":
+            cfg["kitti"]["mapping"] = None
         input_format = cfg.data.input_format.lower()
         output_format = cfg.data.output_format.lower()
         if input_format not in CONVERSION_MAPPING or output_format not in CONVERSION_MAPPING[input_format]:

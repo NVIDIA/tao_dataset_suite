@@ -48,17 +48,17 @@ setuptools.setup(
     keywords=version_locals['__keywords__'],
     packages=setuptools_packages,
     package_data={
-        '': ['*.py', "*.pyc", "*.yaml", "*.so", "*.pdf"]
+        '': ['*.py', "*.pyc", "*.yaml", "*.so", "*.pdf", "*.npy", "*.pt", "*.cpp", "*.cu"]
     },
     include_package_data=True,
     zip_safe=False,
     entry_points={
         'console_scripts': [
-            'augmentation=nvidia_tao_ds.augment.entrypoint.augment:main',
+            'augmentation=nvidia_tao_ds.augmentation.entrypoint.augment:main',
             'auto_label=nvidia_tao_ds.auto_label.entrypoint.auto_label:main',
             'annotations=nvidia_tao_ds.annotations.entrypoint.annotations:main',
             'analytics=nvidia_tao_ds.data_analytics.entrypoint.analytics:main',
-            'image=nvidia_tao_ds.image.entrypoint.image:main'
+            'image=nvidia_tao_ds.image.entrypoint.image:main',
         ]
     }
 )

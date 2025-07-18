@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/pytorch:24.04-py3
+FROM nvcr.io/nvidia/pytorch:25.01-py3
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg libsm6 libxext6
 
@@ -10,14 +10,15 @@ COPY docker/requirements-pip.txt requirements-pip.txt
 RUN pip install -r requirements-pip.txt && \
     rm -rf requirements-pip.txt
 
-# Install mmcv from source for our cuda versions.
-WORKDIR /opt
-COPY third_party/mmcv/mmcv.patch mmcv.patch
-RUN git clone https://github.com/open-mmlab/mmcv.git \
-  && cd mmcv && git checkout v1.7.1 \
-  && git apply /opt/mmcv.patch \
-  && pip install -r requirements/optional.txt --ignore-installed \
-  && FORCE_CUDA=1 MMCV_WITH_OPS=1 python setup.py install
+# 25.01 DLFW stack includes 12.0+PTX which throws an error when building our custom CUDA kernels
+ENV TORCH_CUDA_ARCH_LIST="7.5 8.0 8.6 9.0 10.0"
+
+# Installing PyTorch
+COPY tao-pytorch tao-pytorch
+RUN export WORKSPACE=/workspace/tao-pytorch && \
+    cd ${WORKSPACE} && bash release/docker/build_wheel.sh && \
+    find dist/ -name "nvidia_tao_pytorch*.whl" -type f | xargs -n 1 pip install && \
+    rm -rf *
 
 # Create user that will run commands
 ARG user_id=1000

@@ -16,10 +16,10 @@
 
 import os
 
+from nvidia_tao_core.config.auto_label.default_config import ExperimentConfig
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
 from nvidia_tao_ds.core.decorators import monitor_status
 
-from nvidia_tao_ds.auto_label.config.default_config import ExperimentConfig
 from nvidia_tao_ds.auto_label.grounding_dino.inference import run_grounding_inference
 from nvidia_tao_ds.auto_label.mal.inference import run_mal_inference
 

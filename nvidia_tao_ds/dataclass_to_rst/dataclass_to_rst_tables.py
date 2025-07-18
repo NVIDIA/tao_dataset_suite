@@ -20,7 +20,7 @@ import argparse
 from dataclasses import fields, is_dataclass
 from collections import deque
 from tabulate import tabulate
-from nvidia_tao_ds.api.api_utils.dataclass2json_converter import import_module_from_path
+from nvidia_tao_core.api_utils.dataclass2json_converter import import_module_from_path
 
 def format_metadata(metadata):
     """

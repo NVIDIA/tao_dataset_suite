@@ -19,10 +19,11 @@ import os
 import time
 import sys
 import pandas as pd
+
+from nvidia_tao_core.config.analytics.default_config import ExperimentConfig
 from nvidia_tao_ds.data_analytics.utils import kitti, coco, data_format
 from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
-from nvidia_tao_ds.data_analytics.config.default_config import ExperimentConfig
 from nvidia_tao_ds.data_analytics.utils.constant import COMMON_FILE_NAMES
 
 logger = logging.getLogger(__name__)

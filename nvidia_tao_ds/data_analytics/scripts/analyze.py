@@ -24,12 +24,13 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.font_manager import FontProperties
+
+from nvidia_tao_core.config.analytics.default_config import ExperimentConfig
 from nvidia_tao_ds.data_analytics.utils import kitti, data_format, coco, image, wandb
 from nvidia_tao_ds.data_analytics.utils.constant import COMMON_FILE_NAMES
 from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
 from nvidia_tao_ds.core.mlops.wandb import is_wandb_initialized
-from nvidia_tao_ds.data_analytics.config.default_config import ExperimentConfig
 import nvidia_tao_ds.core.logging.logging as status_logging
 
 logger = logging.getLogger(__name__)
@@ -89,7 +90,7 @@ def object_count_visualize(valid_df, output_dir, graph_attr, wandb_attr):
     """
     # per Object Count
     count_df = valid_df['type'].value_counts(ascending=False).rename(
-        'count_num').reset_index()
+        'count_num').reset_index().rename(columns={'index': 'type'})
     figuresizes = (graph_attr.width, graph_attr.height)
     show_all = True
     if not graph_attr.show_all and len(count_df) > 100:
@@ -113,10 +114,9 @@ def object_count_visualize(valid_df, output_dir, graph_attr, wandb_attr):
             status_level=status_logging.Status.FAILURE
         )
         logging.error(f"Unable to write KPI dict to status logger: {str(e)}")
-
     # Create graph for object count
     if wandb_attr.visualize:
-        graph_data = graph_data.rename(columns={'index': 'Object Name', 'count_num': 'Count'})
+        graph_data = graph_data.rename(columns={'type': 'Object Name', 'count_num': 'Count'})
         wandb.create_barplot(graph_data, "Object Name Vs Count", "object_count_chart1")
     else:
         pdf = PdfPages(os.path.join(output_dir, 'Object_count.pdf'))
@@ -130,7 +130,7 @@ def object_count_visualize(valid_df, output_dir, graph_attr, wandb_attr):
                              'count_num']))
 
         ax = plt.gca()
-        sns.barplot(y='count_num', x='index', data=graph_data, width=0.2)
+        sns.barplot(y='count_num', x='type', data=graph_data, width=0.2)
         txt = "The bar plot below describes the count of each object"\
             " available in valid kitti data."
         plt.text(0.05, 0.95, txt, transform=fig.transFigure, size=10)
@@ -147,13 +147,13 @@ def object_count_visualize(valid_df, output_dir, graph_attr, wandb_attr):
 
     if wandb_attr.visualize:
         graph_data = graph_data.drop("count_num", axis=1)
-        graph_data = graph_data.rename(columns={'index': 'Object Name', 'percent': 'Count(%)'})
+        graph_data = graph_data.rename(columns={'type': 'Object Name', 'percent': 'Count(%)'})
         wandb.create_barplot(graph_data, "Object Name Vs Count Percentage", "object_count_chart2")
     else:
         fig = plt.figure(figsize=figuresizes)
         ax = plt.gca()
         binrange = range(0, 100, 10)
-        sns.barplot(y='percent', x='index', data=graph_data, width=0.2)
+        sns.barplot(y='percent', x='type', data=graph_data, width=0.2)
         txt = "The bar plot below describes the count percentage of each "\
             "object available in valid kitti data ."
         plt.text(0.05, 0.95, txt, transform=fig.transFigure, size=10)
@@ -416,11 +416,11 @@ def truncation_visualize(valid_df, output_dir, graph_attr, wandb_attr):
     valid_df['truncated'] = valid_df['truncated'].round(decimals=1)
     truncated_df = valid_df['truncated']
     truncated_df = truncated_df.value_counts(normalize=True)
-    truncated_df = truncated_df.rename('count_per').reset_index()
+    truncated_df = truncated_df.rename('count_per').reset_index().rename(columns={'index': 'truncated'})
     truncated_df_count = valid_df['truncated']
     truncated_df_count = truncated_df_count.value_counts().rename('count')
-    truncated_df_count = truncated_df_count.reset_index()
-    truncated_df['index'] = truncated_df['index'] * 100
+    truncated_df_count = truncated_df_count.reset_index().rename(columns={'index': 'truncated'})
+    truncated_df['truncated'] = truncated_df['truncated'] * 100
     truncated_df['count_per'] = truncated_df['count_per'] * 100
     truncated_df['count_per'] = truncated_df['count_per'].round(decimals=2)
     figuresizes = (graph_attr.width, graph_attr.height)
@@ -434,7 +434,7 @@ def truncation_visualize(valid_df, output_dir, graph_attr, wandb_attr):
             binrange = range(c_min, c_max, int((c_max - c_min) / 10))
         else:
             binrange = range(c_min, c_max)
-        gph = sns.barplot(data=truncated_df_count, y='count', x='index',
+        gph = sns.barplot(data=truncated_df_count, y='count', x='truncated',
                           width=0.2)
         gph.bar_label(gph.containers[0])
         configure_subgraph(ax, xlabel="Trucation(%)", ylabel="Object Count",
@@ -448,7 +448,7 @@ def truncation_visualize(valid_df, output_dir, graph_attr, wandb_attr):
         fig = plt.figure(figsize=figuresizes)
         ax = plt.gca()
         binrange = range(0, 100, 10)
-        gph = sns.barplot(data=truncated_df, y='count_per', x='index',
+        gph = sns.barplot(data=truncated_df, y='count_per', x='truncated',
                           width=0.2)
         gph.bar_label(gph.containers[0])
         configure_subgraph(ax, xlabel="Trucation(%)", ylabel="Object Count(%)",
@@ -460,7 +460,7 @@ def truncation_visualize(valid_df, output_dir, graph_attr, wandb_attr):
         plt.close()
         pdf.close()
     else:
-        truncated_df_count = truncated_df_count.rename(columns={'count': 'Count', 'index': 'Truncation(%)'})
+        truncated_df_count = truncated_df_count.rename(columns={'count': 'Count', 'truncated': 'Truncation(%)'})
         wandb.create_barplot(truncated_df_count, "Truncation(%) Vs Count", "truncation_chart1")
 
 
@@ -482,16 +482,15 @@ def invalid_data_visualize(valid_df, invalid_df, output_dir, graph_attr, wandb_a
     """
     count_df = valid_df['type']
     count_df = count_df.value_counts().rename('count_num')
-    count_df = count_df.reset_index()
+    count_df = count_df.reset_index().rename(columns={'index': 'type'})
 
     # invalid Obejct tag kitti row
     invalid_count_df = invalid_df['type']
     var = 'invalid_count_num'
     invalid_count_df = invalid_count_df.value_counts().rename(var)
-    invalid_count_df = invalid_count_df.reset_index()
+    invalid_count_df = invalid_count_df.reset_index().rename(columns={'index': 'type'})
 
-    valid_invalid_count_df = count_df.merge(invalid_count_df, on='index',
-                                            how='outer')
+    valid_invalid_count_df = count_df.merge(invalid_count_df, on='type', how='outer')
     cols = {"count_num": "valid_count", "invalid_count_num": "invalid_count"}
     valid_invalid_count_df = valid_invalid_count_df.rename(columns=cols)
     valid_invalid_count_df = valid_invalid_count_df.fillna(0)
@@ -524,7 +523,7 @@ def invalid_data_visualize(valid_df, invalid_df, output_dir, graph_attr, wandb_a
         temp_df = inverted_cord['type']
         var = "inverted_cord_count"
         temp_df = temp_df.value_counts(ascending=True).rename(var)
-        temp_df = temp_df.reset_index()
+        temp_df = temp_df.reset_index().rename(columns={"index": "type"})
         if not graph_attr.show_all and len(temp_df) > 100:
             graph_data_inverted = temp_df.head(100)
         else:
@@ -534,7 +533,7 @@ def invalid_data_visualize(valid_df, invalid_df, output_dir, graph_attr, wandb_a
         temp_df = out_of_bound_bbox['type']
         var = "out_of_bound_bbox_count"
         temp_df = temp_df.value_counts(ascending=True).rename(var)
-        temp_df = temp_df.reset_index()
+        temp_df = temp_df.reset_index().rename(columns={"index": "type"})
         if not graph_attr.show_all and len(temp_df) > 100:
             graph_data_oob = temp_df.head(100)
         else:
@@ -557,7 +556,7 @@ def invalid_data_visualize(valid_df, invalid_df, output_dir, graph_attr, wandb_a
         if len(inverted_cord) > 0:
             fig = plt.figure(figsize=figuresizes)
             ax = plt.gca()
-            gph = sns.barplot(y='inverted_cord_count', x='index', data=graph_data_inverted,
+            gph = sns.barplot(y='inverted_cord_count', x='type', data=graph_data_inverted,
                               width=0.2)
             gph.bar_label(gph.containers[0])
             configure_subgraph(ax, xlabel="Object Name",
@@ -574,7 +573,7 @@ def invalid_data_visualize(valid_df, invalid_df, output_dir, graph_attr, wandb_a
             fig = plt.figure(figsize=figuresizes)
             ax = plt.gca()
 
-            gph = sns.barplot(y='out_of_bound_bbox_count', x='index',
+            gph = sns.barplot(y='out_of_bound_bbox_count', x='type',
                               data=graph_data_oob, width=0.2)
             gph.bar_label(gph.containers[0])
 
@@ -591,13 +590,13 @@ def invalid_data_visualize(valid_df, invalid_df, output_dir, graph_attr, wandb_a
     else:
         wandb.create_barplot(coord_df, "Count Vs bbox Coordinates", "coordinates_chart1")
         if len(inverted_cord) > 0:
-            graph_data_inverted = graph_data_inverted.rename(columns={'index': 'Object Name',
+            graph_data_inverted = graph_data_inverted.rename(columns={'type': 'Object Name',
                                                                       'inverted_cord_count': 'Inverted coordinates count'})
 
             wandb.create_barplot(graph_data_inverted, "Object Name Vs Inverted coordinates count", "coordinates_chart2")
         if len(out_of_bound_bbox) > 0:
             graph_data_oob = graph_data_oob.rename(columns={'out_of_bound_bbox_count': 'out of bound coordinates count',
-                                                            'index': 'Object Name'})
+                                                            'type': 'Object Name'})
 
             wandb.create_barplot(graph_data_oob, "Object Name Vs Out of bound coordinates count", "coordinates_chart3")
 
@@ -619,16 +618,19 @@ def image_visualize(image_df, output_dir, graph_attr, wandb_attr):
     """
     # Image stats
     size_df = image_df['size'].value_counts(ascending=True,
-                                            normalize=True).rename('count_per').reset_index()
+                                            normalize=True).rename('count_per').reset_index().rename(columns={'index': 'size'})
+
     size_df['count_per'] = size_df['count_per'] * 100
 
     width_df = image_df['img_width']
     width_df = width_df.value_counts(ascending=True, normalize=True)
     width_df = width_df.rename('count_per').reset_index()
+
     width_df['count_per'] = width_df['count_per'] * 100
 
     height_df = image_df['img_height']
     height_df = height_df.value_counts(ascending=True, normalize=True)
+
     height_df = height_df.rename('count_per').reset_index()
     height_df['count_per'] = height_df['count_per'] * 100
 
@@ -644,7 +646,7 @@ def image_visualize(image_df, output_dir, graph_attr, wandb_attr):
         ax = plt.gca()
         binrange = range(0, 100, 10)
 
-        gph = sns.barplot(size_df, y='count_per', x='index', width=0.2)
+        gph = sns.barplot(size_df, y='count_per', x='size', width=0.2)
         gph.bar_label(gph.containers[0])
         configure_subgraph(ax, xlabel="image size", ylabel="Count Percentage",
                            yticks=binrange)
@@ -657,8 +659,7 @@ def image_visualize(image_df, output_dir, graph_attr, wandb_attr):
         fig = plt.figure(figsize=figuresizes)
         ax = plt.gca()
         binrange = range(0, 100, 10)
-
-        gph = sns.barplot(width_df, y='count_per', x='index', width=0.2)
+        gph = sns.barplot(width_df, y='count_per', x='img_width', width=0.2)
         gph.bar_label(gph.containers[0])
         configure_subgraph(ax, xlabel="image width",
                            ylabel="Count Percentage", yticks=binrange)
@@ -673,7 +674,7 @@ def image_visualize(image_df, output_dir, graph_attr, wandb_attr):
         ax = plt.gca()
         binrange = range(0, 100, 10)
 
-        gph = sns.barplot(height_df, y='count_per', x='index', width=0.2)
+        gph = sns.barplot(height_df, y='count_per', x='img_height', width=0.2)
         gph.bar_label(gph.containers[0])
         configure_subgraph(ax, xlabel="image height",
                            ylabel="Count Percentage",
@@ -702,11 +703,11 @@ def image_visualize(image_df, output_dir, graph_attr, wandb_attr):
         pdf.close()
     else:
 
-        size_df = size_df.rename(columns={'count_per': 'Count(%)', 'index': 'image area'})
+        size_df = size_df.rename(columns={'count_per': 'Count(%)', 'size': 'image area'})
         wandb.create_barplot(size_df, "image area vs count(%)", "image_chart1")
-        width_df = width_df.rename(columns={'count_per': 'Count(%)', 'index': 'image width'})
+        width_df = width_df.rename(columns={'count_per': 'Count(%)', 'img_width': 'image width'})
         wandb.create_barplot(width_df, "image width vs count(%)", "image_chart2")
-        height_df = height_df.rename(columns={'count_per': 'Count(%)', 'index': 'image height'})
+        height_df = height_df.rename(columns={'count_per': 'Count(%)', 'img_height': 'image height'})
         wandb.create_barplot(height_df, "image height vs count(%)", "image_chart3")
         image_stat = image_stat.reset_index(level=0)
         image_stat = image_stat.rename(columns={'index': 'Stat'})
@@ -755,7 +756,6 @@ def summary_and_graph(valid_df, invalid_df, image_df, output_dir, data_format, g
         No explicit returns.
     """
     # Create CSV for valid and invalid data
-
     create_csv(valid_df, invalid_df, output_dir)
     # Create visualizations
     output_dir = os.path.join(output_dir, 'graphs')
@@ -816,6 +816,7 @@ def visualize_on_desktop(config, valid_df, invalid_df, image_df, image_data):
                           config.data.input_format, config.graph, config.wandb)
         logging.info(f"Created Graphs inside {config.results_dir} folder")
     # Generate Images with bounding boxes
+
     if config.image.generate_image_with_bounding_box:
         if len(image_data) == 0:
             logging.info("Skipping visualizing images with Bounding boxes.Please provide correct path in data.image_dir .")
@@ -920,10 +921,10 @@ def main(cfg: ExperimentConfig):
         logger.info("Interrupting dataset analysis.")
         sys.exit(1)
     except RuntimeError as e:
-        logger.info(f"Analysis run failed with error: {e}")
+        logger.info(f"Analysis run failed with runtime error: {e}")
         sys.exit(1)
     except Exception as e:
-        logger.info(f"Analysis run failed with error: {e}")
+        logger.info(f"Analysis run failed with other error: {e}")
         sys.exit(1)
 
 

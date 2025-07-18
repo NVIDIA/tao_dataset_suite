@@ -23,13 +23,13 @@ import os
 import sys
 import time
 
+from nvidia_tao_core.config.augmentation.default_config import ExperimentConfig
 from nvidia_tao_ds.annotations.conversion.kitti_to_coco import convert_kitti_to_coco
 from nvidia_tao_ds.annotations.conversion.coco_to_kitti import convert_coco_to_kitti
-from nvidia_tao_ds.augment.config.default_config import ExperimentConfig
-from nvidia_tao_ds.augment.pipeline import runner
-from nvidia_tao_ds.augment.utils import callable_dict, pipeline_dict
-from nvidia_tao_ds.augment.utils.helper import config_logger
-from nvidia_tao_ds.augment.utils.distributed_utils import MPI_local_rank
+from nvidia_tao_ds.augmentation.pipeline import runner
+from nvidia_tao_ds.augmentation.utils import callable_dict, pipeline_dict
+from nvidia_tao_ds.augmentation.utils.helper import config_logger
+from nvidia_tao_ds.augmentation.utils.distributed_utils import MPI_local_rank
 from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
 
@@ -81,7 +81,7 @@ def run_augment(config):
     # extra process for COCO dump
     if config.data.dataset_type.lower() == 'coco' and ann_dump:
         logger.info("Saving output annotation JSON...")
-        out_label_path = os.path.join(output_label_dir, "output.json")
+        out_label_path = os.path.join(output_dir, "annotations.json")
         tmp_label_path = out_label_path + f'.part{MPI_local_rank()}'
         with open(tmp_label_path, "w", encoding='utf-8') as f:
             json.dump(ann_dump, f)
@@ -165,7 +165,7 @@ def main(cfg: ExperimentConfig):
             logger.info("Converting COCO json into KITTI format...")
             # convert coco to kitti
             convert_coco_to_kitti(
-                annotations_file=os.path.join(cfg.results_dir, 'labels', 'output.json'),
+                annotations_file=os.path.join(cfg.results_dir, 'annotations.json'),
                 output_dir=os.path.join(cfg.results_dir, 'labels'),
                 refine_box=refine_box_enabled
             )

@@ -28,8 +28,8 @@ from contextlib import contextmanager
 
 import yaml
 
-from nvidia_tao_ds.core.telemetry.nvml_utils import get_device_details
 from nvidia_tao_core.telemetry.telemetry import send_telemetry_data
+from nvidia_tao_core.telemetry.nvml import get_device_details
 
 
 def get_subtasks(package):
@@ -95,7 +95,7 @@ def dual_output(log_file=None):
         yield sys.stdout, None
 
 
-def launch(args, unknown_args, subtasks, multigpu_support=['generate'], task="tao_ds"):
+def launch(args, unknown_args, subtasks, multigpu_support=['generate'], network="tao_ds"):
     """CLI function that executes subtasks.
 
     Args:
@@ -125,7 +125,8 @@ def launch(args, unknown_args, subtasks, multigpu_support=['generate'], task="ta
 
     log_file = ""
     if os.getenv('JOB_ID'):
-        log_file = f"/{os.getenv('JOB_ID')}.txt"
+        logs_dir = os.getenv('TAO_MICROSERVICES_TTY_LOG', '/results')
+        log_file = f"{logs_dir}/{os.getenv('JOB_ID')}/microservices_log.txt"
 
     # Pass unknown args to call
     unknown_args_as_str = " ".join(unknown_args)
@@ -177,7 +178,7 @@ def launch(args, unknown_args, subtasks, multigpu_support=['generate'], task="ta
 
     # Create a system call.
     call = "python " + script + script_args + " " + unknown_args_as_str
-    if task == "augmentation":
+    if network == "augmentation":
         env_variables = ""
         if launch_cuda_blocking:
             env_variables += " CUDA_LAUNCH_BLOCKING=1"
@@ -249,7 +250,7 @@ def launch(args, unknown_args, subtasks, multigpu_support=['generate'], task="ta
             gpu_data.append(device.get_config())
         print("Sending telemetry data.")
         send_telemetry_data(
-            task,
+            network,
             args["subtask"],
             gpu_data,
             num_gpus=num_gpus,

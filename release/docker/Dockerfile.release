@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tao/tao-toolkit:5.5.0-data-services-base
+FROM nvcr.io/nvstaging/tao/data_services_base_image@sha256:d3be468ba5aae395a34736961db96a731270a27ec1e2e0178a87e639891a1b08
 
 WORKDIR /opt/nvidia
 COPY dist/*.whl /opt/nvidia/wheels/
@@ -26,23 +26,29 @@ RUN apt-get update && \
 RUN pip install --upgrade pip && \
     python -m pip install --upgrade Werkzeug==3.0.1
 
+# Installing TAO-Core
+COPY tao-core tao-core
+RUN cd tao-core && bash release/python/build_wheel.sh && \
+    find dist/ -name "nvidia_tao_core*.whl" -type f | xargs -n 1 pip install && \
+    mkdir -p /etc/nginx/ && cp nvidia_tao_core/microservices/nginx.conf /etc/nginx/ && \
+    cd .. && rm -rf tao-core
+
 RUN rm -rf /opt/nvidia/entrypoint.d/*.txt
 COPY release/docker/entrypoint.d/* /opt/nvidia/entrypoint.d/
-
-# nvm version has to be >20.8.0 to avoid security vulnerabilities
-ENV NVM_DIR=/usr/local/nvm
-RUN source "$NVM_DIR/nvm.sh" \
-    && nvm install 20.9.0 --reinstall-packages-from=16.20.2 node \
-    && nvm uninstall 16.20.2
-
-RUN rm -rf /usr/local/nvm/versions/node/v20.9.0/lib/node_modules/npm/node_modules/ip 
 
 ENV NVIDIA_PRODUCT_NAME "TAO Toolkit"
 ENV TAO_TOOLKIT_VERSION="5.2.0"
 ENV TAO_TELEMETRY_SERVER="https://api.tao.ngc.nvidia.com"
 
-# Microservices entrypoint
-ENV FLASK_APP=/usr/local/lib/python3.10/dist-packages/nvidia_tao_ds/api/app.py 
+EXPOSE 8000
 
-# Include NGC CLI as an entrypoint.
-CMD [ "/bin/bash" ]
+# Microservices entrypoint
+ENV FLASK_APP=nvidia_tao_core.microservices.app
+
+ENV RUN_CLI=0
+
+CMD if [ "$RUN_CLI" = "1" ]; then \
+        /bin/bash; \
+    else \
+        /bin/bash $(get-microservice-script); \
+    fi

@@ -19,7 +19,7 @@ import numpy as np
 from pycocotools import mask
 from pycocotools.coco import COCO
 
-from nvidia_tao_ds.augment.utils.file_handlers import load_file
+from nvidia_tao_ds.augmentation.utils.file_handlers import load_file
 
 
 class CocoInputCallable:

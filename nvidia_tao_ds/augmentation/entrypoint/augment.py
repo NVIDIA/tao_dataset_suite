@@ -16,7 +16,7 @@
 
 import argparse
 
-from nvidia_tao_ds.augment import scripts
+from nvidia_tao_ds.augmentation import scripts
 from nvidia_tao_ds.core.entrypoint.entrypoint import get_subtasks, launch, command_line_parser
 
 
@@ -40,7 +40,7 @@ def main():
     args, unknown_args = command_line_parser(parser, subtasks)
 
     # Parse the arguments and launch the subtask.
-    launch(vars(args), unknown_args, subtasks, task="augmentation")
+    launch(vars(args), unknown_args, subtasks, network="augmentation")
 
 
 if __name__ == '__main__':

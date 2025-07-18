@@ -16,7 +16,8 @@
 
 import os
 import sys
-from nvidia_tao_ds.annotations.config.merge_config import MergeConfig
+
+from nvidia_tao_core.config.annotations.merge_config import MergeConfig
 from nvidia_tao_ds.annotations.merger import COCOMerger, ODVGMerger
 from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner

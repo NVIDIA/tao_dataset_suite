@@ -8,8 +8,8 @@ from prettytable import PrettyTable
 import pandas as pd
 
 import logging
+from nvidia_tao_core.config.analytics.default_config import ExperimentConfig
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
-from nvidia_tao_ds.data_analytics.config.default_config import ExperimentConfig
 from nvidia_tao_ds.data_analytics.utils import data_format, data_process, kpi, wandb, local_visualize
 from nvidia_tao_ds.annotations.conversion.kitti_to_coco import construct_category_map
 
@@ -63,6 +63,7 @@ def analyze(cfg):
         pred_data_obj.df, pred_data_obj.ids = pred_df, pred_ids
 
         # Evaluate Results
+        cat_map = None
         if input_format == "KITTI":
             cat_map = construct_category_map(ground_truth_ann_path, mapping)
 
