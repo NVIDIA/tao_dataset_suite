@@ -19,8 +19,8 @@ import pycocotools.mask as maskUtils
 from PIL import Image
 from tqdm import tqdm
 
-from nvidia_tao_ds.augment.utils import kitti
-from nvidia_tao_ds.augment.utils.helper import decode_str
+from nvidia_tao_ds.augmentation.utils import kitti
+from nvidia_tao_ds.augmentation.utils.helper import decode_str
 
 
 def save_image(img, path):

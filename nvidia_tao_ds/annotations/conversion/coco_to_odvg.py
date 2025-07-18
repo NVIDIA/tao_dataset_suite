@@ -84,6 +84,9 @@ def convert_coco_to_odvg(cfg, verbose=False):
 
         if use_all_categories:
             cat_ids = list(names.keys())
+            cat_cnts = [0] * len(cat_ids)
+            for ann in coco.dataset['annotations']:
+                cat_cnts[ann['category_id']] += 1
         else:
             # Get category ids that are actually present in the dataset.
             cat_ids, cat_cnts = np.unique([a['category_id'] for a in coco.dataset['annotations']], return_counts=True)

@@ -76,6 +76,7 @@ def iou(boxes1, boxes2, border_pixels='half'):
     ymax = 3
 
     # Compute the union areas.
+    d = 0
     if border_pixels == 'half':
         d = 0
     elif border_pixels == 'include':
@@ -135,9 +136,9 @@ def _per_img_match(x, n_classes, sorting_algorithm, matching_iou_threshold, min_
         gt = np.array([[-1, 0, 0, 0, 0]])
     T = [[] for _ in range(n_classes)]
     P = [[] for _ in range(n_classes)]
-    if len(gt) > 0:
-        gt_cls = [gt[gt[:, 0] == i, 1:] for i in range(n_classes)]
-        gt_cls_valid = [np.ones((len(i), )) for i in gt_cls]
+    assert len(gt) > 0, "gt is empty"
+    gt_cls = [gt[gt[:, 0] == i, 1:] for i in range(n_classes)]
+    gt_cls_valid = [np.ones((len(i), )) for i in gt_cls]
     if len(pred) > 0:
         desc_inds = np.argsort(-pred[:, 1], kind=sorting_algorithm)
         pred = pred[desc_inds]

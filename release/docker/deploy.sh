@@ -4,8 +4,8 @@ set -eo pipefail
 # cd "$( dirname "${BASH_SOURCE[0]}" )"
 
 registry="nvcr.io"
-tao_version="5.5.0"
-repository="nvidia/tao/tao-toolkit-ds"
+tao_version="5.2.0"
+repository="nvstaging/tao/tao-toolkit-ds"
 build_id="01"
 tag="v${tao_version}-py3-${build_id}"
 
@@ -15,6 +15,7 @@ BUILD_WHEEL="0"
 PUSH_DOCKER="0"
 FORCE="0"
 
+git submodule update --init --recursive
 
 # Parse command line.
 while [[ $# -gt 0 ]]
@@ -75,7 +76,10 @@ if [ $BUILD_DOCKER = "1" ]; then
         echo "Skipping wheel builds ..."
     fi
     
-    docker build --pull -f $NV_TAO_DS_TOP/release/docker/Dockerfile.release -t $registry/$repository:$tag $NO_CACHE --network=host $NV_TAO_DS_TOP/.
+    docker build --build-arg JFROG_USERNAME=$JFROG_USERNAME \
+        --build-arg JFROG_PASSWORD=$JFROG_PASSWORD \
+        --pull -f $NV_TAO_DS_TOP/release/docker/Dockerfile.release \
+        -t $registry/$repository:$tag $NO_CACHE --network=host $NV_TAO_DS_TOP/.
 
     if [ $PUSH_DOCKER = "1" ]; then
         echo "Pusing docker ..."

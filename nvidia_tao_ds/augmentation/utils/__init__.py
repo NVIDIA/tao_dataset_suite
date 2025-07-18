@@ -12,4 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Initial module containing implementation for TAO Telemetry."""
+"""Utility functions for TAO augment."""
+
+from nvidia_tao_ds.augmentation.dataloader.coco_callable import CocoInputCallable
+from nvidia_tao_ds.augmentation.dataloader.kitti_callable import KittiInputCallable
+from nvidia_tao_ds.augmentation.pipeline.sharded_pipeline import (
+    build_coco_pipeline,
+    build_kitti_pipeline,
+)
+
+callable_dict = {
+    'kitti': KittiInputCallable,
+    'coco': CocoInputCallable
+}
+
+pipeline_dict = {
+    'kitti': build_kitti_pipeline,
+    'coco': build_coco_pipeline
+}

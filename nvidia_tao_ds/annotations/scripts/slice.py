@@ -16,7 +16,8 @@
 
 import os
 import sys
-from nvidia_tao_ds.annotations.config.slice_config import SliceConfig
+
+from nvidia_tao_core.config.annotations.slice_config import SliceConfig
 from nvidia_tao_ds.annotations.slicer import builder
 from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner

@@ -16,9 +16,9 @@
 import os
 import numpy as np
 
-from nvidia_tao_ds.augment.utils import kitti
-from nvidia_tao_ds.augment.utils.file_handlers import load_file
-from nvidia_tao_ds.augment.utils.helper import encode_str
+from nvidia_tao_ds.augmentation.utils import kitti
+from nvidia_tao_ds.augmentation.utils.file_handlers import load_file
+from nvidia_tao_ds.augmentation.utils.helper import encode_str
 
 
 class KittiInputCallable:

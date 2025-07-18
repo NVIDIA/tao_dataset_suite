@@ -40,7 +40,7 @@ def main():
     args, unknown_args = command_line_parser(parser, subtasks)
 
     # Parse the arguments and launch the subtask.
-    launch(vars(args), unknown_args, subtasks, task="image")
+    launch(vars(args), unknown_args, subtasks, network="image")
 
 
 if __name__ == '__main__':

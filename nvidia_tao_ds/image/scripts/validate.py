@@ -17,12 +17,14 @@
 import logging
 import os
 import time
+import glob
 import sys
 import shutil
 import imghdr
+
+from nvidia_tao_core.config.image.default_config import ExperimentConfig
 from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
-from nvidia_tao_ds.image.config.default_config import ExperimentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -41,18 +43,19 @@ def remove_corruption_images(config):
     if not os.path.exists(image_dir):
         logger.info("Please provide path of image folder.")
         sys.exit(1)
-    for file_name in os.listdir(image_dir):
+    for file_name in glob.glob(os.path.join(image_dir, "**/*"), recursive=True):
         file_extension = file_name[file_name.rfind('.'):].lower()
         if file_extension in valid_extensions:
-            source_path = os.path.join(image_dir, file_name)
-            destination_path = os.path.join(results_dir, file_name)
-            if imghdr.what(source_path):
+            destination_path = os.path.join(results_dir + file_name.replace(image_dir, ""))
+            if not os.path.exists(os.path.dirname(destination_path)):
+                os.makedirs(os.path.dirname(destination_path))
+            if imghdr.what(file_name):
                 if not config.in_place:  # Valid image and in_place correction is False then we copy valid image
-                    shutil.copy(source_path, destination_path)
+                    shutil.copy(file_name, destination_path)
             else:
                 if config.in_place:  # Invalid image and in_place correction is True then we move invalid image
-                    shutil.move(source_path, destination_path)
-                logger.info(f"{source_path} as it's corrupted")
+                    shutil.move(file_name, destination_path)
+                logger.warning(f"{file_name} is corrupted")
     logger.debug(f"Total time taken : {time.perf_counter() - start_time}")
 
 spec_root = os.path.dirname(os.path.abspath(__file__))

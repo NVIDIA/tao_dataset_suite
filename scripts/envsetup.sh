@@ -11,8 +11,10 @@ fi
 
 export NV_TAO_DS_TOP="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 
+# In the release image, tao-core is pip installed
+# For local testing, we add tao-core to the pythonpath (from pov of inside container) so imports will work
 function tao_ds {
-   python $NV_TAO_DS_TOP/runner/tao_ds.py "$@"
+   PYTHONPATH=/workspace/tao-core:$PYTHONPATH python $NV_TAO_DS_TOP/runner/tao_ds.py "$@"
 }
 export -f tao_ds
 
