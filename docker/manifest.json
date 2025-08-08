@@ -1,5 +1,5 @@
 {
     "registry": "nvcr.io",
     "repository": "nvstaging/tao/data_services_base_image",
-    "digest": "sha256:d3be468ba5aae395a34736961db96a731270a27ec1e2e0178a87e639891a1b08"
+    "digest": "sha256:0a2356fcf43f781c9f19335d84472c5b2a0d7c785122608a62f9fdb2222a389a"
 }

@@ -40,7 +40,7 @@ setuptools.setup(
         'Environment :: Console',
         'License :: Other/Proprietary License',
         'Natural Language :: English',
-        'Operating System :: Linux',
+        'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3.8',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
     ],
