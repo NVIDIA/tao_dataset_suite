@@ -4,10 +4,10 @@ set -eo pipefail
 # cd "$( dirname "${BASH_SOURCE[0]}" )"
 
 registry="nvcr.io"
-tao_version="5.2.0"
+tao_version="6.1.0"
 repository="nvstaging/tao/tao-toolkit-ds"
 build_id="01"
-tag="v${tao_version}-py3-${build_id}"
+tag="${tao_version}-data-services-ea-rc1"
 
 # Build parameters.
 BUILD_DOCKER="0"

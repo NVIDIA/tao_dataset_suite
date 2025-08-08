@@ -19,6 +19,7 @@ from nvidia_tao_ds.annotations.conversion.coco_to_kitti import convert_coco_to_k
 from nvidia_tao_ds.annotations.conversion.coco_to_odvg import convert_coco_to_odvg
 from nvidia_tao_ds.annotations.conversion.coco_to_contiguous import convert_coco_to_contiguous
 from nvidia_tao_ds.annotations.conversion.odvg_to_coco import convert_odvg_to_coco
+from nvidia_tao_ds.annotations.conversion.aicity_to_ovpkl import convert_aicity_to_ovpkl
 
 
 CONVERSION_MAPPING = {
@@ -32,5 +33,8 @@ CONVERSION_MAPPING = {
     },
     "odvg": {
         "coco": convert_odvg_to_coco
+    },
+    "aicity": {
+        "ovpkl": convert_aicity_to_ovpkl
     }
 }

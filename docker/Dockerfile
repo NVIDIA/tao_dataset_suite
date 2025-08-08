@@ -1,9 +1,13 @@
 FROM nvcr.io/nvidia/pytorch:25.01-py3
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg libsm6 libxext6
-
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg libsm6 libxext6 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 # upgrade pip
 RUN pip install --upgrade pip
+
+# Remove any existing opencv installations to avoid conflicts
+RUN pip uninstall -y opencv || true && \
+    rm -rf /usr/local/lib/python3.12/dist-packages/cv2
 
 # Installing requirements
 COPY docker/requirements-pip.txt requirements-pip.txt
