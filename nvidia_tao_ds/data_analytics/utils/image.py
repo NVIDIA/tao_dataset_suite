@@ -16,11 +16,12 @@
 import os
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import as_completed
-import logging
 import re
 import random
 from PIL import Image, ImageDraw
 from tqdm import tqdm
+
+from nvidia_tao_ds.core.logging.logging import logger
 
 
 def write_to_image(filepaths, output_image_folder, df, object_color_dict, dataformat=None):
@@ -106,7 +107,7 @@ def generate_images_with_bounding_boxes(df, image_data, output_dir, image_sample
     all_image_paths = [i_data[2] for i_data in image_data.values()]
     if len(all_image_paths) > image_sample_size:
         all_image_paths = random.sample(set(all_image_paths), image_sample_size)
-    logging.info(f"Total image files- {len(all_image_paths)}")
+    logger.info(f"Total image files- {len(all_image_paths)}")
     object_color_dict = assign_object_colors(df['type'].unique())
     if dataformat == "KITTI":
         df = df.drop(["truncated", "occluded", "alpha", "rotation_y", "loc_x",
@@ -138,4 +139,4 @@ def generate_images_with_bounding_boxes(df, image_data, output_dir, image_sample
         for future in as_completed(futures):
             tq.update(chunksize)
     tq.close()
-    logging.info(f"Images with bounding boxes are available at {output_image_folder}")
+    logger.info(f"Images with bounding boxes are available at {output_image_folder}")

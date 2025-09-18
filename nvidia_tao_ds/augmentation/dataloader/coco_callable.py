@@ -12,18 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""kitti loader."""
+"""COCO loader."""
 
 import os
 import numpy as np
 from pycocotools import mask
 from pycocotools.coco import COCO
 
+from nvidia_tao_ds.core.logging.logging import logger
 from nvidia_tao_ds.augmentation.utils.file_handlers import load_file
 
 
 class CocoInputCallable:
-    """KITTI loader for DALI pipeline."""
+    """COCO loader for DALI pipeline."""
 
     def __init__(self, image_dir, annotation_path, batch_size,
                  include_masks=False, shard_id=0, num_shards=1):
@@ -32,6 +33,8 @@ class CocoInputCallable:
         self.coco = COCO(annotation_path)
 
         self.include_masks = include_masks
+        if not include_masks:
+            logger.warning("If your annotation json has mask groundtruth, please set `include_masks=True`.")
         self.batch_size = batch_size
         self.shard_id = shard_id
         self.num_shards = num_shards

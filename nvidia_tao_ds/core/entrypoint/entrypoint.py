@@ -188,6 +188,11 @@ def launch(args, unknown_args, subtasks, multigpu_support=['generate'], network=
         # Augment uses MPI, which uses all visible devices
         os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["TAO_VISIBLE_DEVICES"]
         call = f"{mpi_command} bash -c \'{env_variables} {call}\'"
+    if network == "auto_label" and num_gpus > 1:
+        # Forcing this with auto_label because of the multi-GPU support
+        os.environ["OMP_NUM_THREADS"] = "1"
+        os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["TAO_VISIBLE_DEVICES"]
+        call = f"torchrun --nproc-per-node={num_gpus} " + script + script_args
 
     process_passed = False
     start = time()

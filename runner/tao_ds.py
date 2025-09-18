@@ -50,7 +50,7 @@ def format_mounts(mount_points):
     # Traverse through mount points and add format them for the docker command.
     for mount_point in mount_points:
         assert "source" in list(mount_point.keys()), "destination" in list(mount_point.keys())
-        mount = "{}:{}".format(mount_point["source"], mount_point["destination"])
+        mount = "{}:{}".format(os.path.abspath(os.path.expanduser(mount_point["source"])), mount_point["destination"])
         formatted_mounts.append(mount)
     return formatted_mounts
 

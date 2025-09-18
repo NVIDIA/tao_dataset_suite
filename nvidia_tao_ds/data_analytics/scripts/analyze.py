@@ -17,7 +17,6 @@
 import pandas as pd
 import os
 import time
-import logging
 import numpy as np
 import sys
 import seaborn as sns
@@ -32,8 +31,7 @@ from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
 from nvidia_tao_ds.core.mlops.wandb import is_wandb_initialized
 import nvidia_tao_ds.core.logging.logging as status_logging
-
-logger = logging.getLogger(__name__)
+from nvidia_tao_ds.core.logging.logging import logger
 
 
 def configure_subgraph(axn, xlabel=None, ylabel=None, xtickrotate=None,
@@ -105,7 +103,7 @@ def object_count_visualize(valid_df, output_dir, graph_attr, wandb_attr):
         # Write KPI dict to status callback
         kpi_dict = graph_data.to_dict()
         kpi_dict['analyze_type'] = 'object_count'
-        logging.info(f"Object Count KPI Dict: {kpi_dict}")
+        logger.info(f"Object Count KPI Dict: {kpi_dict}")
         s_logger.kpi = kpi_dict
         s_logger.write()
     except Exception as e:
@@ -113,7 +111,7 @@ def object_count_visualize(valid_df, output_dir, graph_attr, wandb_attr):
             message=str(e),
             status_level=status_logging.Status.FAILURE
         )
-        logging.error(f"Unable to write KPI dict to status logger: {str(e)}")
+        logger.error(f"Unable to write KPI dict to status logger: {str(e)}")
     # Create graph for object count
     if wandb_attr.visualize:
         graph_data = graph_data.rename(columns={'type': 'Object Name', 'count_num': 'Count'})
@@ -315,7 +313,7 @@ def bbox_area_visualize(valid_df, output_dir, graph_attr, wandb_attr):
         # Write KPI dict to status callback
         kpi_dict = graph_data.to_dict()
         kpi_dict['analyze_type'] = 'bbox_area'
-        logging.info(f"Bbox area KPI Dict: {kpi_dict}")
+        logger.info(f"Bbox area KPI Dict: {kpi_dict}")
         s_logger.kpi = kpi_dict
         s_logger.write()
     except Exception as e:
@@ -323,7 +321,7 @@ def bbox_area_visualize(valid_df, output_dir, graph_attr, wandb_attr):
             message=str(e),
             status_level=status_logging.Status.FAILURE
         )
-        logging.error(f"Unable to write KPI dict to status logger: {str(e)}")
+        logger.error(f"Unable to write KPI dict to status logger: {str(e)}")
 
     area_stats = valid_df['bbox_area'].describe()
     area_stat = pd.DataFrame({'Value': area_stats})
@@ -793,7 +791,7 @@ def visualize_on_wandb(config, valid_df, invalid_df, image_df, len_image_data):
         sys.exit(1)
     if config.image.generate_image_with_bounding_box:
         if len_image_data == 0:
-            logging.info("Skipping visualizing images with Bounding boxes.Please provide correct path in data.image_dir .")
+            logger.info("Skipping visualizing images with Bounding boxes.Please provide correct path in data.image_dir .")
         else:
             wandb.generate_images_with_bounding_boxes(valid_df, config.wandb, config.results_dir, config.image.sample_size)
 
@@ -814,12 +812,12 @@ def visualize_on_desktop(config, valid_df, invalid_df, image_df, image_data):
     if config.graph.generate_summary_and_graph:
         summary_and_graph(valid_df, invalid_df, image_df, config.results_dir,
                           config.data.input_format, config.graph, config.wandb)
-        logging.info(f"Created Graphs inside {config.results_dir} folder")
+        logger.info(f"Created Graphs inside {config.results_dir} folder")
     # Generate Images with bounding boxes
 
     if config.image.generate_image_with_bounding_box:
         if len(image_data) == 0:
-            logging.info("Skipping visualizing images with Bounding boxes.Please provide correct path in data.image_dir .")
+            logger.info("Skipping visualizing images with Bounding boxes.Please provide correct path in data.image_dir .")
         else:
             logger.info("Generating images with bounding boxes and labels.")
             image.generate_images_with_bounding_boxes(valid_df, image_data, config.results_dir,

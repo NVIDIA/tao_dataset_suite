@@ -22,11 +22,10 @@ import multiprocessing
 import numpy as np
 import pandas as pd
 from PIL import Image
+
+from nvidia_tao_ds.core.logging.logging import logger
 from nvidia_tao_ds.data_analytics.utils.constant import COMMON_FILE_NAMES
-import logging
 
-
-logger = logging.getLogger(__name__)
 IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg"]
 
 
@@ -431,7 +430,7 @@ def create_correct_kitti_files(df, corrected_df, output_dir, workers):
         os.makedirs(kitti_folder)
 
     kitti_files = corrected_df['path'].unique()
-    logging.info(f"Total kitti files to be corrected - {len(kitti_files)}")
+    logger.info(f"Total kitti files to be corrected - {len(kitti_files)}")
     with ProcessPoolExecutor(workers) as executor:
         futures = []
         if len(kitti_files) < workers:

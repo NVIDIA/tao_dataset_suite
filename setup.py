@@ -59,6 +59,7 @@ setuptools.setup(
             'annotations=nvidia_tao_ds.annotations.entrypoint.annotations:main',
             'analytics=nvidia_tao_ds.data_analytics.entrypoint.analytics:main',
             'image=nvidia_tao_ds.image.entrypoint.image:main',
+            'skin_tone=nvidia_tao_ds.skin_tone.entrypoint.skin_tone:main'
         ]
     }
 )

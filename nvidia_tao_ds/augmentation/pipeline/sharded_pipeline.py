@@ -14,13 +14,12 @@
 
 """DALI pipeline."""
 
-import logging
-
 import numpy as np
 from nvidia import dali
 from nvidia.dali import fn, pipeline_def
 import nvidia.dali.fn.transforms as tr
-logger = logging.getLogger(__name__)
+
+from nvidia_tao_ds.core.logging.logging import logger
 
 
 def random_pick(values):
@@ -30,9 +29,9 @@ def random_pick(values):
     elif len(values) == 1:
         value = values[0]
     elif len(values) == 2:
-        value = dali.fn.random.uniform(range=tuple(values))
+        value = np.random.uniform(low=values[0], high=values[1])
     else:
-        value = dali.fn.random.uniform(values=list(values))
+        value = np.random.choice(values)
     return value
 
 
@@ -87,6 +86,7 @@ def apply_color_transform(images, config):
     Returns:
         images (list): Batch of images.
     """
+    logger.info("Applying color augmentation to the images.")
     H = config.hue.hue_rotation_angle
     H = -random_pick(H)
     S = config.saturation.saturation_shift
@@ -113,7 +113,7 @@ def apply_color_transform(images, config):
     return images
 
 
-def transform_boxes(boxes, matrix, out_w, out_h):
+def transform_boxes(boxes, matrix, out_w, out_h, fmt="xyxy"):
     """Apply color transform to the image.
 
     Args:
@@ -125,8 +125,14 @@ def transform_boxes(boxes, matrix, out_w, out_h):
     # boxes' shape: num_boxes x 4
     box_x0 = fn.slice(boxes, 0, 1, axes=[1])
     box_y0 = fn.slice(boxes, 1, 1, axes=[1])
-    box_x1 = fn.slice(boxes, 2, 1, axes=[1])
-    box_y1 = fn.slice(boxes, 3, 1, axes=[1])
+    if fmt == "xyxy":
+        box_x1 = fn.slice(boxes, 2, 1, axes=[1])
+        box_y1 = fn.slice(boxes, 3, 1, axes=[1])
+    elif fmt == "xywh":
+        box_x1 = fn.slice(boxes, 2, 1, axes=[1]) + box_x0
+        box_y1 = fn.slice(boxes, 3, 1, axes=[1]) + box_y0
+    else:
+        raise ValueError("Only `xyxy` (KITTI) format and `xywh` (COCO) format are supported.")
     corners = fn.stack(
         fn.cat(box_x0, box_y0, axis=1),
         fn.cat(box_x1, box_y0, axis=1),
@@ -159,9 +165,11 @@ def apply_blur(images, blur_config):
     Returns:
         images (batch): Batch of images blurred.
     """
-    logger.debug("Applying Gaussian blur operator to the images.")
-    sigma = random_pick(blur_config.std) or None
-    size = random_pick(blur_config.size) or None
+    sigma = random_pick(blur_config.std) or 0
+    size = random_pick(blur_config.size) or 0
+    if sigma == size == 0:
+        return images
+    logger.info("Applying Gaussian blur operator to the images.")
     return fn.gaussian_blur(images, sigma=sigma, window_size=size)
 
 
@@ -213,12 +221,12 @@ def build_coco_pipeline(coco_callable, is_fixed_size, config,
             )
 
         orig_boxes = boxes  # noqa pylint: disable=W0612
-        boxes = transform_boxes(boxes, mt, out_w, out_h)
+        boxes = transform_boxes(boxes, mt, out_w, out_h, fmt="xywh")
         images = apply_color_transform(images, config.color_aug)
         images = apply_blur(images, config.blur_aug)
 
         return images, boxes, img_ids, masks
-    logger.debug("Building COCO pipeline.")
+    logger.info("Building COCO pipeline.")
     pipe = sharded_coco_pipeline(
         coco_callable, is_fixed_size, config)
     pipe.build()
@@ -227,7 +235,7 @@ def build_coco_pipeline(coco_callable, is_fixed_size, config,
 
 def build_kitti_pipeline(kitti_callable, is_fixed_size, config,
                          batch_size=1, device_id=0):
-    """Build DALI pipeline for COCO format dataset."""
+    """Build DALI pipeline for KITTI format dataset."""
 
     @pipeline_def(batch_size=batch_size, num_threads=2, device_id=device_id,
                   py_num_workers=1, py_start_method='spawn', seed=config.random_seed)
@@ -266,13 +274,13 @@ def build_kitti_pipeline(kitti_callable, is_fixed_size, config,
         )
 
         orig_boxes = boxes  # noqa pylint: disable=W0612
-        boxes = transform_boxes(boxes, mt, out_w, out_h)
+        boxes = transform_boxes(boxes, mt, out_w, out_h, fmt="xyxy")
         images = apply_color_transform(images, config.color_aug)
         images = apply_blur(images, config.blur_aug)
 
         return images, boxes, img_paths, lbl_paths
 
-    logger.debug("Building KITTI pipeline.")
+    logger.info("Building KITTI pipeline.")
     pipe = sharded_kitti_pipeline(
         kitti_callable, is_fixed_size, config)
     pipe.build()

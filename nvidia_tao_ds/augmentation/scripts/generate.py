@@ -17,7 +17,6 @@
 from copy import deepcopy
 import gc
 import glob
-import logging
 import json
 import os
 import sys
@@ -28,13 +27,11 @@ from nvidia_tao_ds.annotations.conversion.kitti_to_coco import convert_kitti_to_
 from nvidia_tao_ds.annotations.conversion.coco_to_kitti import convert_coco_to_kitti
 from nvidia_tao_ds.augmentation.pipeline import runner
 from nvidia_tao_ds.augmentation.utils import callable_dict, pipeline_dict
-from nvidia_tao_ds.augmentation.utils.helper import config_logger
 from nvidia_tao_ds.augmentation.utils.distributed_utils import MPI_local_rank
+
 from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
-
-logger = logging.getLogger(__name__)
-config_logger(logger)
+from nvidia_tao_ds.core.logging.logging import logger
 
 
 @monitor_status(mode='Augment')

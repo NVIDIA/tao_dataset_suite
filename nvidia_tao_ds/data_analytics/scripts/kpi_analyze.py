@@ -7,13 +7,11 @@ import sys
 from prettytable import PrettyTable
 import pandas as pd
 
-import logging
 from nvidia_tao_core.config.analytics.default_config import ExperimentConfig
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
+from nvidia_tao_ds.core.logging.logging import logger
 from nvidia_tao_ds.data_analytics.utils import data_format, data_process, kpi, wandb, local_visualize
 from nvidia_tao_ds.annotations.conversion.kitti_to_coco import construct_category_map
-
-logger = logging.getLogger(__name__)
 
 
 def analyze(cfg):

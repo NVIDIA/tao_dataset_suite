@@ -1,5 +1,5 @@
 data:
-  annotation_file: /home/scratch.p3/yuw/datasets/coco/annotations/instances_val2017.json
+  annotation_file: /datasets/coco/annotations/instances_val2017.json
 filter:
   mode: "category"
   num_samples: 10
@@ -7,4 +7,4 @@ filter:
   # included_categories:
   excluded_categories:
     - person
-results_dir: /home/scratch.p3/yuw/datasets
+results_dir: /results_dir
