@@ -1,6 +1,6 @@
 data:
-  image_dir: "/home/scratch.p3/yuw/datasets/kitti_debug/debug/images"
-  ann_path: "/home/scratch.p3/yuw/datasets/kitti_debug/debug/labels"
+  image_dir: "/datasets/kitti/images"
+  ann_path: "/datasets/kitti/labels"
   dataset_type: 'kitti'
   batch_size: 2
   include_masks: False

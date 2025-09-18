@@ -37,7 +37,8 @@ def process_augmented_coco(image_id, image, boxes_per_image, masks_per_image,
     out_image_path = os.path.join(config.results_dir, 'images', img_name)
     ann_per_image = []
     for j in range(len(ann_load)):
-        ann_load[j]['bbox'] = list(map(lambda x: float(x), list(boxes_per_image[j])))
+        x1, y1, x2, y2 = list(map(lambda x: float(x), list(boxes_per_image[j])))
+        ann_load[j]['bbox'] = [x1, y1, x2 - x1, y2 - y1]
         if config.data.include_masks:
             # mask --> RLE
             encoded_mask = maskUtils.encode(

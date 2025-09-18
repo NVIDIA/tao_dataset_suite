@@ -27,6 +27,7 @@ import torch
 from torchvision.ops import batched_nms
 
 from lightning_fabric import Fabric
+from lightning_fabric.strategies import DDPStrategy
 
 from nvidia_tao_pytorch.cv.deformable_detr.utils.misc import load_pretrained_weights
 from nvidia_tao_pytorch.cv.deformable_detr.utils.box_ops import box_cxcywh_to_xyxy
@@ -249,8 +250,17 @@ def iterate_single(model, dataloader, results_dir, captions, categories, box_pro
 
 def run_grounding_inference(experiment_config, results_dir):
     """Automatically generate bounding boxes using Grounding DINO."""
-    gpu_ids = [int(gpu) for gpu in os.environ['TAO_VISIBLE_DEVICES'].split(',')]
-    fabric = Fabric(devices=gpu_ids, strategy='auto')
+    # Align CUDA and TAO visible devices and prefer NCCL for GPU DDP
+    tao_visible = os.environ.get('TAO_VISIBLE_DEVICES', os.environ.get('CUDA_VISIBLE_DEVICES', '0'))
+    gpu_ids = [int(gpu) for gpu in tao_visible.split(',') if gpu != '']
+    os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(str(g) for g in gpu_ids)
+
+    using_gpu = torch.cuda.is_available() and len(gpu_ids) > 0
+    strategy = DDPStrategy(process_group_backend='nccl') if using_gpu else 'ddp'
+    accelerator = 'gpu' if using_gpu else 'cpu'
+    num_devices = max(1, len(gpu_ids)) if using_gpu else 1
+
+    fabric = Fabric(accelerator=accelerator, devices=num_devices, strategy=strategy)
     fabric.launch()
 
     batch_size = experiment_config.batch_size
@@ -349,8 +359,8 @@ def run_grounding_inference(experiment_config, results_dir):
         # Empty cuda for the next iteration
         torch.cuda.empty_cache()
 
-    # Aggregate the file at rank 0
-    with fabric.rank_zero_first(local=False):
+    # Aggregate the file on global rank 0 only, then synchronize
+    if fabric.global_rank == 0:
         final_annotation_path = os.path.join(original_results_dir, "final_annotation.jsonl")
         if len(experiment_config.iteration_scheduler) > 1:
             fabric.print("Merging each iteration into one")
@@ -370,7 +380,8 @@ def run_grounding_inference(experiment_config, results_dir):
         # Remove all jsonl files that have been temporarily stored for DDP runs
         for r in resultdir_lists:
             for file in glob.glob(os.path.join(r, "*.rank*jsonl")):
-                os.remove(file)
+                if os.path.exists(file):
+                    os.remove(file)
 
         if visualize:
             os.makedirs(os.path.join(original_results_dir, "images_annotated"), exist_ok=True)
@@ -398,3 +409,5 @@ def run_grounding_inference(experiment_config, results_dir):
                                                  os.path.basename(image_name))
                 image_with_box = plot_boxes_to_image(pil_input, {"boxes": boxes, "labels": labels})
                 image_with_box.save(output_image_name)
+
+    fabric.barrier()

@@ -18,9 +18,8 @@ import pandas
 from pycocotools.coco import COCO
 import os
 import json
-import logging
 
-logger = logging.getLogger(__name__)
+from nvidia_tao_ds.core.logging.logging import logger
 
 
 def correct_data(coco_obj, output_dir):

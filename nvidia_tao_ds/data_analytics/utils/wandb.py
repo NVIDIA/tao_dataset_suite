@@ -14,18 +14,17 @@
 
 """Routines for connecting with Weights and Biases client."""
 
-import logging
 import os
 import random
 import wandb
 import pandas as pd
 
+from nvidia_tao_ds.core.logging.logging import logger
 from nvidia_tao_ds.core.mlops.wandb import (
     check_wandb_logged_in,
     initialize_wandb,
     is_wandb_initialized
 )
-logger = logging.getLogger(__name__)
 
 
 def login_and_initialize_wandb(wandb_config, output_dir):

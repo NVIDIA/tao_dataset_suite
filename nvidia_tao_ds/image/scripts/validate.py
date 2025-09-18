@@ -14,7 +14,6 @@
 
 """Entrypoint script to run TAO image correction."""
 
-import logging
 import os
 import time
 import glob
@@ -25,8 +24,7 @@ import imghdr
 from nvidia_tao_core.config.image.default_config import ExperimentConfig
 from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
-
-logger = logging.getLogger(__name__)
+from nvidia_tao_ds.core.logging.logging import logger
 
 
 @monitor_status(mode='Remove Corrupted images')

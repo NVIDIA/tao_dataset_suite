@@ -14,7 +14,6 @@
 
 """Entrypoint script to run TAO validate."""
 
-import logging
 import os
 import time
 import sys
@@ -24,9 +23,8 @@ from nvidia_tao_core.config.analytics.default_config import ExperimentConfig
 from nvidia_tao_ds.data_analytics.utils import kitti, coco, data_format
 from nvidia_tao_ds.core.decorators import monitor_status
 from nvidia_tao_ds.core.hydra.hydra_runner import hydra_runner
+from nvidia_tao_ds.core.logging.logging import logger
 from nvidia_tao_ds.data_analytics.utils.constant import COMMON_FILE_NAMES
-
-logger = logging.getLogger(__name__)
 
 
 def class_balance_info(df):

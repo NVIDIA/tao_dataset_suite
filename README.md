@@ -158,7 +158,7 @@ cd $NV_TAO_DS_TOP/release/docker
 In order to build a new docker, please edit the `deploy.sh` file in `$NV_TAO_DS_TOP/release/docker` to update the patch version and re-run the steps above.
 
 ## <a name='ContributionGuidelines'></a>Contribution Guidelines
-TAO Toolkit Data-services is not accepting contributions as part of the TAO 6.25.7 release, but will be open in the future.
+TAO Toolkit Data-services is not accepting contributions as part of the TAO 6.25.9 release, but will be open in the future.
 
 ## <a name='License'></a>License
 This project is licensed under the [Apache-2.0](./LICENSE) License.

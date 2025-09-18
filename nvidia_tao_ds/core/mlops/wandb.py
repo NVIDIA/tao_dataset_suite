@@ -15,15 +15,14 @@
 """Routines for connecting with Weights and Biases client."""
 
 from datetime import datetime
-import logging
 
 from pytorch_lightning.utilities import rank_zero_only
 import wandb
 from wandb import AlertLevel
 import os
 
+from nvidia_tao_ds.core.logging.logging import logger
 DEFAULT_WANDB_CONFIG = "~/.netrc"
-logger = logging.getLogger(__name__)
 
 _WANDB_INITIALIZED = False
 
