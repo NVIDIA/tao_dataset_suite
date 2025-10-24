@@ -195,6 +195,7 @@ def launch(args, unknown_args, subtasks, multigpu_support=['generate'], network=
         call = f"torchrun --nproc-per-node={num_gpus} " + script + script_args
 
     process_passed = False
+    user_error = False
     start = time()
     progress_bar_pattern = re.compile(r"Epoch \d+: \s*\d+%|\[.*\]")
 
@@ -241,9 +242,18 @@ def launch(args, unknown_args, subtasks, multigpu_support=['generate'], network=
     except (KeyboardInterrupt, SystemExit) as e:
         logging.info("Command was interrupted due to ", e)
         process_passed = True
-    except subprocess.CalledProcessError as e:
-        if e.output is not None:
-            logging.info(e.output)
+    except Exception as e:
+        # Check if the exception is a user configuration error
+        error_message = str(e)
+        user_error = any(keyword in error_message for keyword in [
+            "Configuration error",
+            "Feature not implemented",
+            "Parameter validation error",
+            "File system error",
+            "Schema validation error"
+        ])
+
+        logging.exception(e)
         process_passed = False
 
     end = time()
@@ -260,7 +270,8 @@ def launch(args, unknown_args, subtasks, multigpu_support=['generate'], network=
             gpu_data,
             num_gpus=num_gpus,
             time_lapsed=time_lapsed,
-            pass_status=process_passed
+            pass_status=process_passed,
+            user_error=user_error
         )
     except Exception as e:
         print("Telemetry data couldn't be sent, but the command ran successfully.")
