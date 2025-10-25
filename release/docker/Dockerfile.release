@@ -41,7 +41,7 @@ RUN rm -rf /opt/nvidia/entrypoint.d/*.txt
 COPY release/docker/entrypoint.d/* /opt/nvidia/entrypoint.d/
 
 ENV NVIDIA_PRODUCT_NAME "TAO Toolkit"
-ENV TAO_TOOLKIT_VERSION="6.25.9"
+ENV TAO_TOOLKIT_VERSION="6.25.10"
 ENV NVIDIA_TAO_TOOLKIT_VERSION="${TAO_TOOLKIT_VERSION}-Data-Services"
 ENV TAO_TELEMETRY_SERVER="https://api.tao.ngc.nvidia.com"
 
