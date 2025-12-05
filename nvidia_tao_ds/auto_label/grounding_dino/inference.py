@@ -29,12 +29,12 @@ from torchvision.ops import batched_nms
 from lightning_fabric import Fabric
 from lightning_fabric.strategies import DDPStrategy
 
-from nvidia_tao_pytorch.cv.deformable_detr.utils.misc import load_pretrained_weights
+from nvidia_tao_pytorch.core.utils.ptm_utils import load_pretrained_weights
 from nvidia_tao_pytorch.cv.deformable_detr.utils.box_ops import box_cxcywh_to_xyxy
 
 from nvidia_tao_pytorch.cv.grounding_dino.model.build_nn_model import build_model
 from nvidia_tao_pytorch.cv.grounding_dino.model.post_process import PostProcess
-from nvidia_tao_pytorch.cv.grounding_dino.utils.misc import parse_checkpoint
+from nvidia_tao_pytorch.cv.grounding_dino.model.utils import grounding_dino_parser, ptm_adapter
 
 from nvidia_tao_ds.auto_label.grounding_dino.utils import (
     plot_boxes_to_image, get_json_result, save_results, load_jsonlines
@@ -47,7 +47,7 @@ from nvidia_tao_ds.annotations.merger import ODVGMerger
 def load_model(experiment_config, checkpoint_path):
     """Load Grounding DINO model"""
     model = build_model(experiment_config=experiment_config)
-    checkpoint = load_pretrained_weights(checkpoint_path, parser=parse_checkpoint)
+    checkpoint = load_pretrained_weights(checkpoint_path, ptm_adapter=ptm_adapter, parser=grounding_dino_parser)
     new_checkpoint = {k.replace("model.model.", "model."): v for k, v in checkpoint.items()}
     model.load_state_dict(new_checkpoint)
     return model

@@ -1,4 +1,6 @@
-FROM nvcr.io/nvidia/pytorch:25.01-py3
+FROM nvcr.io/nvidia/pytorch:25.09-py3
+
+ENV TORCH_CUDA_ARCH_LIST="7.5 8.0 8.6 9.0 9.0a 10.0 11.0 12.0+PTX"
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg libsm6 libxext6 && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -14,15 +16,13 @@ COPY docker/requirements-pip.txt requirements-pip.txt
 RUN pip install -r requirements-pip.txt && \
     rm -rf requirements-pip.txt
 
-# 25.01 DLFW stack includes 12.0+PTX which throws an error when building our custom CUDA kernels
-ENV TORCH_CUDA_ARCH_LIST="7.5 8.0 8.6 9.0 10.0"
-
 # Installing PyTorch
 COPY tao-pytorch tao-pytorch
 RUN export WORKSPACE=/workspace/tao-pytorch && \
     cd ${WORKSPACE} && bash release/docker/build_wheel.sh && \
     find dist/ -name "nvidia_tao_pytorch*.whl" -type f | xargs -n 1 pip install && \
     rm -rf *
+
 
 # Create user that will run commands
 ARG user_id=1000
