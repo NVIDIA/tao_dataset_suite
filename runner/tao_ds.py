@@ -15,20 +15,42 @@
 """Instantiate the Data-Services docker container for developers."""
 
 import argparse
-from distutils.version import LooseVersion
 import json
 import os
+import platform
 import subprocess
 import sys
 
+from packaging import version
+
 ROOT_DIR = os.getenv("NV_TAO_DS_TOP", os.path.dirname(os.path.dirname(os.getcwd())))
 
-with open(os.path.join(ROOT_DIR, "docker/manifest.json"), "r") as m_file:
+with open(os.path.join(ROOT_DIR, "docker/manifest.json"), "r", encoding="utf-8") as m_file:
     docker_config = json.load(m_file)
 
 DOCKER_REGISTRY = docker_config["registry"]
 DOCKER_REPOSITORY = docker_config["repository"]
-DOCKER_DIGEST = docker_config["digest"]
+
+# Platform keys for digest lookup
+X86_KEY = "x86"
+ARM_KEY = "arm"
+
+# Handle both old and new manifest formats
+if "digest" in docker_config:
+    # Old format with single digest
+    DOCKER_DIGEST = docker_config["digest"]
+elif "digests" in docker_config:
+    # New format with platform-specific digests
+    arch = platform.machine()
+    if arch == "x86_64":
+        DOCKER_DIGEST = docker_config["digests"][X86_KEY]
+    elif arch == "aarch64":
+        DOCKER_DIGEST = docker_config["digests"][ARM_KEY]
+    else:
+        # Fallback to x86
+        DOCKER_DIGEST = docker_config["digests"][X86_KEY]
+else:
+    raise ValueError("Invalid manifest format: missing 'digest' or 'digests' field")
 DOCKER_COMMAND = "docker"
 HOME_PATH = os.path.expanduser("~")
 MOUNTS_PATH = os.path.join(HOME_PATH, ".tao_mounts.json")
@@ -38,7 +60,7 @@ def get_docker_mounts_from_file(mounts_file=MOUNTS_PATH):
     """Check for docker mounts in ~/.tao_mounts.json."""
     if not os.path.exists(mounts_file):
         return []
-    with open(mounts_file, 'r') as mfile:
+    with open(mounts_file, 'r', encoding="utf-8") as mfile:
         data = json.load(mfile)
     assert "Mounts" in list(data.keys()), "Invalid json file. Requires Mounts key."
     return data["Mounts"]
@@ -77,7 +99,7 @@ def get_formatted_mounts(mount_file):
 
 def check_mounts(formatted_mounts):
     """Check the formatted mount commands."""
-    assert type(formatted_mounts) == list
+    assert isinstance(formatted_mounts, list)
     for mounts in formatted_mounts:
         source_path = mounts.split(":")[0]
         if not os.path.exists(source_path):
@@ -94,7 +116,18 @@ def get_docker_gpus_prefix(gpus):
         .strip()
         .decode()
     )
-    if LooseVersion(docker_version) >= LooseVersion("1.40"):
+
+    # Check if running on a tegra system like thor or jetson
+    uname_output = subprocess.check_output(["uname", "-a"]).decode().strip()
+    is_tegra = "tegra" in uname_output
+
+    # Use nvidia runtime if docker version is old OR if on tao-thor/tegra system
+    if version.parse(docker_version) <= version.parse("1.40") or is_tegra:
+        # Stick to the older version of getting the gpu's using runtime=nvidia
+        gpu_string = "--runtime=nvidia -e NVIDIA_DRIVER_CAPABILITIES=all "
+        if gpus != "none":
+            gpu_string += "-e NVIDIA_VISIBLE_DEVICES={}".format(gpus)
+    else:
         # You are using the latest version of docker using
         # --gpus instead of the nvidia runtime.
         gpu_string = "--gpus "
@@ -102,11 +135,6 @@ def get_docker_gpus_prefix(gpus):
             gpu_string += "all"
         else:
             gpu_string += '\'\"device={}\"\''.format(gpus)
-    else:
-        # Stick to the older version of getting the gpu's using runtime=nvidia
-        gpu_string = "--runtime=nvidia -e NVIDIA_DRIVER_CAPABILITIES=all "
-        if gpus != "none":
-            gpu_string += "-e NVIDIA_VISIBLE_DEVICES={}".format(gpus)
     return gpu_string
 
 
@@ -218,9 +246,9 @@ def parse_cli_args(args=None):
     )
 
     parser.add_argument(
-        "--mounts_file", 
-        help="Path to the mounts file.", 
-        default="", 
+        "--mounts_file",
+        help="Path to the mounts file.",
+        default="",
         type=str
     )
 
@@ -244,13 +272,13 @@ def parse_cli_args(args=None):
         default=None,
         type=str
     )
-   
+
     parser.add_argument(
         "--ulimit",
         action='append',
         help="Docker ulimits for the host machine."
     )
-    
+
     parser.add_argument(
         "--run_as_service",
         help="Flag to run as a microservice",
@@ -264,7 +292,7 @@ def parse_cli_args(args=None):
         default="0.0.0.0",
         help="Microservice ip address (e.g. 0.0.0.0)."
     )
-    
+
     parser.add_argument(
         "--port",
         type=str,
@@ -274,8 +302,8 @@ def parse_cli_args(args=None):
 
     parser.add_argument(
         "--port_mapping",
-        type=str, 
-        default="8000", 
+        type=str,
+        default="8000",
         help="Port mapping for the micorservices port (e.g. 8000).")
 
     parser.add_argument(
@@ -284,9 +312,9 @@ def parse_cli_args(args=None):
         action="store_false",
         help="Set TTY"
     )
-    
+
     parser.set_defaults(tty=True)
-    
+
     args = vars(parser.parse_args(args))
     return args
 
@@ -301,9 +329,9 @@ def main(cl_args=None):
     else:
         ds_args = cl_args
         command_args = None
-        
+
     args = parse_cli_args(ds_args)
-    
+
     # Over writing command_args in case the container is being launched as a microservice
     if args["run_as_service"]:
         command_args = list(f'pip install ./nvidia_tao_pytorch-5.2.0.1-cp310-cp310-linux_x86_64.whl && \

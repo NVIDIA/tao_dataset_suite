@@ -20,10 +20,36 @@ import json
 import logging as _logging
 import os
 
-from nvidia_tao_core.cloud_handlers.utils import status_callback
+from nvidia_tao_core.microservices.handlers.cloud_handlers.utils import status_callback
 
 from torch import distributed as torch_distributed
 from pytorch_lightning.utilities import rank_zero_only, rank_zero_warn
+
+
+# Mapping of string log levels to logging constants
+LOG_LEVEL_MAPPING = {
+    'DEBUG': _logging.DEBUG,
+    'INFO': _logging.INFO,
+    'WARNING': _logging.WARNING,
+    'WARN': _logging.WARNING,
+    'ERROR': _logging.ERROR,
+    'CRITICAL': _logging.CRITICAL,
+    'FATAL': _logging.CRITICAL,
+}
+
+
+def get_logging_level():
+    """Get logging level from environment variable.
+
+    Reads TAO_LOGGING_LEVEL environment variable and returns the corresponding
+    logging level. Defaults to INFO if not set or invalid.
+
+    Returns:
+        int: Python logging level constant (e.g., logging.INFO)
+    """
+    level_str = os.getenv('TAO_LOGGING_LEVEL', 'INFO').upper()
+    level = LOG_LEVEL_MAPPING.get(level_str, _logging.INFO)
+    return level
 
 
 class MessageFormatter(_logging.Formatter):
@@ -51,13 +77,115 @@ class MessageFormatter(_logging.Formatter):
         return formatter.format(record)
 
 
+# Get logging level from environment variable
+_log_level = get_logging_level()
+
 logger = _logging.getLogger('TAO Data-service')
-logger.setLevel(_logging.DEBUG)
+logger.setLevel(_log_level)
 ch = _logging.StreamHandler()
-ch.setLevel(_logging.DEBUG)
+ch.setLevel(_log_level)
 ch.setFormatter(MessageFormatter())
 logger.addHandler(ch)
 logging = logger
+
+
+class StatusLoggerHandler(_logging.Handler):
+    """Handler that forwards standard logging to StatusLogger.
+
+    This handler bridges the standard Python logging system with the
+    TAO StatusLogger, allowing log messages to be written to both
+    console and status log files simultaneously.
+
+    The handler fetches the current status logger on each emit, so it
+    automatically uses the most recently set StatusLogger instance.
+    """
+
+    def __init__(self):
+        """Initialize the StatusLoggerHandler."""
+        super().__init__()
+        self._get_status_logger = None
+        self._Verbosity = None
+        self._Status = None
+
+    def emit(self, record):
+        """Forward log records to the status logger.
+
+        Args:
+            record (logging.LogRecord): The log record to emit.
+        """
+        try:
+            # Lazy import to avoid circular dependencies
+            if self._get_status_logger is None:
+                # Import from this module since Verbosity and Status are defined here
+                self._get_status_logger = get_status_logger
+                self._Verbosity = Verbosity
+                self._Status = Status
+
+            # Get the current status logger (may change if set_status_logger is called again)
+            status_logger = self._get_status_logger()
+
+            # Map Python logging levels to StatusLogger verbosity
+            level_map = {
+                _logging.DEBUG: self._Verbosity.DEBUG,
+                _logging.INFO: self._Verbosity.INFO,
+                _logging.WARNING: self._Verbosity.WARNING,
+                _logging.ERROR: self._Verbosity.ERROR,
+                _logging.CRITICAL: self._Verbosity.CRITICAL
+            }
+
+            verbosity_level = level_map.get(record.levelno, self._Verbosity.INFO)
+
+            # Determine status based on log level
+            if record.levelno >= _logging.ERROR:
+                status_level = self._Status.FAILURE
+            else:
+                status_level = self._Status.RUNNING
+
+            # Format the message
+            message = self.format(record)
+
+            # Write to status logger
+            status_logger.write(
+                data={},
+                status_level=status_level,
+                verbosity_level=verbosity_level,
+                message=message
+            )
+        except Exception:
+            self.handleError(record)
+
+
+def enable_dual_logging():
+    """Enable logging to both console and status logger.
+
+    This function adds a StatusLoggerHandler to the TAO Data-service logger,
+    which forwards all log messages to the status logger in addition to
+    the standard console output.
+
+    Note: This is automatically called by set_status_logger(), so you typically
+    don't need to call it manually. It's safe to call multiple times - if the
+    handler is already added, this function silently returns.
+
+    Example:
+        >>> from nvidia_tao_ds.core.logging.logging import StatusLogger, set_status_logger, logging
+        >>>
+        >>> # Setup status logger (automatically enables dual logging)
+        >>> status_logger = StatusLogger(filename="status.json")
+        >>> set_status_logger(status_logger)
+        >>>
+        >>> # Now all logging calls automatically go through both systems
+        >>> logging.info("This goes to both console and status file!")
+    """
+    # Check if handler is already added (safe for multiple calls)
+    for handler in logger.handlers:
+        if isinstance(handler, StatusLoggerHandler):
+            # Handler already exists, silently return
+            return
+
+    # Add the handler only if it doesn't exist
+    status_handler = StatusLoggerHandler()
+    status_handler.setLevel(get_logging_level())
+    logger.addHandler(status_handler)
 
 
 class Verbosity():
@@ -227,7 +355,6 @@ class BaseLogger(object):
 
             if message:
                 data["message"] = message
-            logging.log(verbosity_level, message)
 
             if self.categorical:
                 data["categorical"] = self.categorical
@@ -313,11 +440,22 @@ _STATUS_LOGGER = BaseLogger()
 def set_status_logger(status_logger):
     """Set the status logger.
 
+    This function also automatically enables dual logging, which forwards
+    all standard Python logging calls to the status logger in addition to
+    console output.
+
     Args:
         status_logger: An instance of the logger class.
     """
     global _STATUS_LOGGER  # pylint: disable=W0603
     _STATUS_LOGGER = status_logger
+
+    # Automatically enable dual logging when status logger is set
+    try:
+        enable_dual_logging()  # No pylint needed here - function is in same module
+    except Exception:
+        # Silently fail if dual logging cannot be enabled (e.g., in non-standard environments)
+        pass
 
 
 def get_status_logger():

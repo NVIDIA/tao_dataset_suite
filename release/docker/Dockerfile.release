@@ -1,4 +1,12 @@
-FROM nvcr.io/nvstaging/tao/data_services_base_image@sha256:0a2356fcf43f781c9f19335d84472c5b2a0d7c785122608a62f9fdb2222a389a
+# Select base image based on architecture
+ARG TARGETARCH # provided by Docker if using BuildKit. Else pass in explicitly.
+ARG ARM64_DIGEST=378ab65cb05fa9b4b461c628d504ee3c56ae7c234a598739e0091547b84feedf
+ARG X86_DIGEST=b9a95c1ee89489293e07dd344c6c78903e4c2344c7f27ce44468830fc53c8719
+
+FROM nvcr.io/nvstaging/tao/data_services_base_image@sha256:${ARM64_DIGEST} AS base-arm64
+FROM nvcr.io/nvstaging/tao/data_services_base_image@sha256:${X86_DIGEST} AS base-amd64
+
+FROM base-${TARGETARCH}
 
 WORKDIR /opt/nvidia
 COPY dist/*.whl /opt/nvidia/wheels/
@@ -32,10 +40,6 @@ RUN cd tao-core && bash release/python/build_wheel.sh && \
     find dist/ -name "nvidia_tao_core*.whl" -type f | xargs -n 1 pip install && \
     mkdir -p /etc/nginx/ && cp nvidia_tao_core/microservices/nginx.conf /etc/nginx/ && \
     cd .. && rm -rf tao-core
-
-## Install mongodump and mongorestore
-RUN apt update && wget https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-$(uname -m)-100.10.0.deb ## Update this when upgrading from Ubuntu 22.04
-RUN apt install ./mongodb-database-tools-*-100.10.0.deb && rm -f mongodb-database-tools-*.deb
 
 RUN rm -rf /opt/nvidia/entrypoint.d/*.txt
 COPY release/docker/entrypoint.d/* /opt/nvidia/entrypoint.d/

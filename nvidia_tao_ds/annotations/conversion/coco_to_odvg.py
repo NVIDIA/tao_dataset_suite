@@ -154,7 +154,8 @@ def convert_coco_to_odvg(cfg, verbose=False):
             meta = {
                 "file_name": img_info["file_name"],
                 "height": img_info["height"],
-                "width": img_info["width"]
+                "width": img_info["width"],
+                "image_id": img_id
             }
 
             if is_grounding:

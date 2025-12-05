@@ -117,6 +117,25 @@ cd $NV_TAO_DS_TOP/docker
 ./build.sh --build
 ```
 
+The build script now supports cross-platform builds for x86_64 and ARM64 architectures. By default, it builds for your host architecture, but you can specify the target platform:
+
+```sh
+# Build for x86_64/AMD64 (default on x86_64 hosts)
+./build.sh --build --x86
+
+# Build for ARM64 (for Jetson/ARM devices)
+./build.sh --build --arm
+
+# Build for both platforms (requires --push flag)
+./build.sh --build --multiplatform --push
+```
+
+For more build options, use the help flag:
+
+```sh
+./build.sh --help
+```
+
 #### <a name='Testthenewlybuiltbasedocker'></a>Test the newly built base docker
 
 The build script tags the newly built base docker with the username of the account in the user's local machine. Therefore, the developers may tests their new docker by using the `tao_ds` command with the `--tag` option.
@@ -132,17 +151,21 @@ Once you are sufficiently confident about the newly built base docker, please do
 1. Push the newly built base docker to the registry
 
     ```sh
-    bash $NV_TAO_DS_TOP/docker/build.sh --build --push
+    # For single platform (x86 or arm)
+    bash $NV_TAO_DS_TOP/docker/build.sh --build --push --x86
+    
+    # For multi-platform (both x86 and arm)
+    bash $NV_TAO_DS_TOP/docker/build.sh --build --push --multiplatform
     ```
 
-2. The above step produces a digest file associated with the docker. This is a unique identifier for the docker. So please note this, and update all references of the old digest in the repository with the new digest. You may find the old digest in the `$NV_TAO_DS_TOP/docker/manifest.json`.
+2. The above step produces a digest file associated with the docker. This is a unique identifier for the docker. So please note this, and update all references of the old digest in the repository with the new digest. The manifest file at `$NV_TAO_DS_TOP/docker/manifest.json` now contains platform-specific digests for both x86 and ARM architectures. Update the appropriate digest(s) based on which platform(s) you built.
 
 Push you final updated changes to the repository so that other developers can leverage and sync with the new dev environment.
 
 Please note that if for some reason you would like to force build the docker without using a cache from the previous docker, you may do so by using the `--force` option.
 
 ```sh
-bash $NV_TAO_DS_TOP/docker/build.sh --build --push --force
+bash $NV_TAO_DS_TOP/docker/build.sh --build --push --force --x86
 ```
 
 ## <a name='Buildingareleasecontainer'></a>Building a release container
@@ -158,7 +181,7 @@ cd $NV_TAO_DS_TOP/release/docker
 In order to build a new docker, please edit the `deploy.sh` file in `$NV_TAO_DS_TOP/release/docker` to update the patch version and re-run the steps above.
 
 ## <a name='ContributionGuidelines'></a>Contribution Guidelines
-TAO Toolkit Data-services is not accepting contributions as part of the TAO 6.25.9 release, but will be open in the future.
+TAO Toolkit Data-services is not accepting contributions as part of the TAO 5.0 release, but will be open in the future.
 
 ## <a name='License'></a>License
 This project is licensed under the [Apache-2.0](./LICENSE) License.

@@ -55,6 +55,16 @@ def get_subtasks(package):
         }
         modules[task] = module_details
 
+    # Add default_specs command as a common subtask for all networks
+    try:
+        from nvidia_tao_ds.core.utils import default_specs
+        modules["default_specs"] = {
+            "module_name": "nvidia_tao_ds.core.utils.default_specs",
+            "runner_path": os.path.abspath(default_specs.__file__),
+        }
+    except ImportError as e:
+        logging.warning(f"Could not load default_specs: {e}")
+
     return modules
 
 
@@ -68,7 +78,7 @@ def command_line_parser(parser, subtasks):
         "-e",
         "--experiment_spec_file",
         help="Path to the experiment spec file.",
-        required=True)
+        required=False)
 
     args, unknown_args = parser.parse_known_args()
     return args, unknown_args
@@ -105,21 +115,38 @@ def launch(args, unknown_args, subtasks, multigpu_support=['generate'], network=
     # Parse the arguments.
     process_passed = True
 
-    script_args = ""
-    # Check for whether the experiment spec file exists.
-    if not os.path.exists(args["experiment_spec_file"]):
-        raise FileNotFoundError(
-            f'Experiment spec file wasn not found at {args["experiment_spec_file"]}'
-        )
-    path, name = os.path.split(args["experiment_spec_file"])
-    if path != "":
-        script_args += f" --config-path {os.path.realpath(path)}"
-    script_args += f" --config-name {name}"
+    # default_specs doesn't require an experiment spec file
+    if args["subtask"] != "default_specs":
+        # Check for whether the experiment spec file exists.
+        if args["experiment_spec_file"] is None:
+            raise ValueError(
+                f"The subtask `{args['subtask']}` requires the following argument: -e/--experiment_spec_file"
+            )
+        if not os.path.exists(args["experiment_spec_file"]):
+            raise FileNotFoundError(
+                f'Experiment spec file was not found at {args["experiment_spec_file"]}'
+            )
 
-    # This enables a results_dir arg to be passed from the microservice side,
-    # but there is no --results_dir cmdline arg. Instead, the spec field must be used
-    if "results_dir" in args:
-        script_args += " results_dir=" + args["results_dir"]
+    script_args = ""
+
+    # Handle default_specs separately - it doesn't use experiment_spec_file
+    if args["subtask"] == "default_specs":
+        # Add module_name argument (the network name)
+        if network:
+            script_args += f" module_name={network}"
+        # Pass results_dir if provided
+        if "results_dir" in args:
+            script_args += " results_dir=" + args["results_dir"]
+    else:
+        path, name = os.path.split(args["experiment_spec_file"])
+        if path != "":
+            script_args += f" --config-path {os.path.realpath(path)}"
+        script_args += f" --config-name {name}"
+
+        # This enables a results_dir arg to be passed from the microservice side,
+        # but there is no --results_dir cmdline arg. Instead, the spec field must be used
+        if "results_dir" in args:
+            script_args += " results_dir=" + args["results_dir"]
 
     script = subtasks[args['subtask']]["runner_path"]
 
